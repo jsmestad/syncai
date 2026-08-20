@@ -121,13 +121,13 @@ Use `--scope home` or `--scope work` to select scoped agents, skills, extensions
 
 ## Getting started
 
-Install the latest macOS Apple Silicon release into `~/.local/bin`:
+Install the latest release for your current macOS or Linux architecture into `~/.local/bin`:
 
 ```bash
-mkdir -p "$HOME/.local/bin" && curl -fsSL https://github.com/jsmestad/syncai/releases/latest/download/syncai_darwin_arm64.tar.gz | tar -xz -C "$HOME/.local/bin" syncai
+curl -fsSL https://raw.githubusercontent.com/jsmestad/syncai/main/install.sh | sh
 ```
 
-Release archives also use `darwin_amd64`, `linux_arm64`, and `linux_amd64` suffixes. Make sure `~/.local/bin` is on your `PATH`. Once installed, `syncai update` downloads the matching latest release, verifies its signed release tag and checksums, rejects downgrades, and atomically replaces the running binary.
+The installer supports Intel and ARM64 macOS and Linux systems. It verifies the release tag, signed checksum manifest, and archive checksum before replacing `~/.local/bin/syncai`. Make sure `~/.local/bin` is on your `PATH`. Once installed, `syncai update` applies the same checks before atomically replacing the running binary and rejects downgrades.
 
 You can also install from source:
 
