@@ -151,6 +151,16 @@ func TestPlanForModelEditReversesClaudeAlias(t *testing.T) {
 	}
 }
 
+func TestReverseModelChoosesFirstSortedRole(t *testing.T) {
+	role, ok := ReverseModel("claude", "opus", claudeProfiles())
+	if !ok {
+		t.Fatal("expected opus to reverse to a model role")
+	}
+	if role != "code-high" {
+		t.Fatalf("role = %q, want lexicographically first match code-high", role)
+	}
+}
+
 func TestPlanForOMPToolsAndModelEdit(t *testing.T) {
 	d := t.TempDir()
 	installed := filepath.Join(d, "omp/installed/elixir-architect.md")

@@ -20,6 +20,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jsmestad/syncai/internal/load"
 	"github.com/jsmestad/syncai/internal/pathguard"
 )
 
@@ -113,11 +114,7 @@ func Save(path string, m *Manifest) error {
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(raw, '\n'), 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return load.WriteFileReplacing(filepath.Dir(path), filepath.Base(path), append(raw, '\n'), 0o644)
 }
 
 // HashFile returns the hex-encoded SHA-256 of the file at path.
@@ -185,6 +182,8 @@ func Diff(old, next *Manifest) (filesToRemove, dirsToRemove []string) {
 			dirsToRemove = append(dirsToRemove, d)
 		}
 	}
+	sort.Strings(filesToRemove)
+	sort.Strings(dirsToRemove)
 	return filesToRemove, dirsToRemove
 }
 

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+
+	"github.com/jsmestad/syncai/internal/load"
 )
 
 // File mirrors model-profiles.json on disk.
@@ -170,7 +173,7 @@ func SetActiveProfile(profile string) (string, error) {
 	}
 	body, _ := json.MarshalIndent(map[string]string{"activeProfile": profile}, "", "  ")
 	body = append(body, '\n')
-	if err := os.WriteFile(path, body, 0o644); err != nil {
+	if err := load.WriteFileReplacing(filepath.Dir(path), filepath.Base(path), body, 0o644); err != nil {
 		return "", err
 	}
 	return path, nil
@@ -234,5 +237,6 @@ func fixedKeys(m map[string]map[string]string) []string {
 	for k := range m {
 		out = append(out, k)
 	}
+	sort.Strings(out)
 	return out
 }

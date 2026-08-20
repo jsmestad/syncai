@@ -18,10 +18,9 @@ func MkdirAll(root, candidate string, perm os.FileMode) error {
 	return os.MkdirAll(path, perm)
 }
 
-// WriteFileReplacing writes data to path, replacing whatever is currently
-// there (regular file, broken symlink, stale stow link, etc.). Without the
-// explicit Remove, os.WriteFile follows symlinks and fails when the target
-// doesn't exist — common when migrating off a stow-based dotfiles flow.
+// WriteFileReplacing atomically writes data to path, replacing whatever is
+// currently there (regular file, broken symlink, stale stow link, etc.). The
+// temporary file lives beside the destination so Rename cannot cross devices.
 func WriteFileReplacing(root, candidate string, data []byte, perm os.FileMode) error {
 	path, err := resolveReplacement(root, candidate)
 	if err != nil {
@@ -30,18 +29,45 @@ func WriteFileReplacing(root, candidate string, data []byte, perm os.FileMode) e
 	if err := MkdirAll(root, filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	// Lstat doesn't follow symlinks; we want to know if *anything* is at
-	// the path so we can clear it.
 	writePerm := perm
 	if info, err := os.Lstat(path); err == nil {
 		if info.Mode().IsRegular() {
 			writePerm = info.Mode().Perm()
 		}
-		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("removing stale %s: %w", path, err)
-		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspecting replacement target %s: %w", path, err)
 	}
-	return os.WriteFile(path, data, writePerm)
+
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".syncai-write-*")
+	if err != nil {
+		return fmt.Errorf("creating temporary file for %s: %w", path, err)
+	}
+	temporaryPath := temporary.Name()
+	closed := false
+	defer func() {
+		if !closed {
+			_ = temporary.Close()
+		}
+		_ = os.Remove(temporaryPath)
+	}()
+
+	if _, err := temporary.Write(data); err != nil {
+		return fmt.Errorf("writing temporary file for %s: %w", path, err)
+	}
+	if err := temporary.Chmod(writePerm.Perm()); err != nil {
+		return fmt.Errorf("applying permissions to temporary file for %s: %w", path, err)
+	}
+	if err := temporary.Sync(); err != nil {
+		return fmt.Errorf("syncing temporary file for %s: %w", path, err)
+	}
+	if err := temporary.Close(); err != nil {
+		return fmt.Errorf("closing temporary file for %s: %w", path, err)
+	}
+	closed = true
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return fmt.Errorf("replacing %s: %w", path, err)
+	}
+	return nil
 }
 
 func resolveReplacement(root, candidate string) (string, error) {

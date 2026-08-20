@@ -12,21 +12,22 @@ import (
 func TestDiffReportsRemovedFilesAndDirs(t *testing.T) {
 	old := &Manifest{
 		Files: []FileEntry{
-			{Path: "/a/x.md", Hash: "h1"},
 			{Path: "/a/y.md", Hash: "h2"},
+			{Path: "/a/x.md", Hash: "h1"},
+			{Path: "/a/z.md", Hash: "h3"},
 		},
-		Directories: []string{"/a/skill1", "/a/skill2"},
+		Directories: []string{"/a/skill3", "/a/skill1", "/a/skill2"},
 	}
 	next := &Manifest{
 		Files:       []FileEntry{{Path: "/a/x.md", Hash: "h1"}},
 		Directories: []string{"/a/skill1"},
 	}
 	files, dirs := Diff(old, next)
-	if len(files) != 1 || files[0] != "/a/y.md" {
-		t.Errorf("files: got %v, want [/a/y.md]", files)
+	if len(files) != 2 || files[0] != "/a/y.md" || files[1] != "/a/z.md" {
+		t.Errorf("files: got %v, want [/a/y.md /a/z.md]", files)
 	}
-	if len(dirs) != 1 || dirs[0] != "/a/skill2" {
-		t.Errorf("dirs: got %v, want [/a/skill2]", dirs)
+	if len(dirs) != 2 || dirs[0] != "/a/skill2" || dirs[1] != "/a/skill3" {
+		t.Errorf("dirs: got %v, want [/a/skill2 /a/skill3]", dirs)
 	}
 }
 

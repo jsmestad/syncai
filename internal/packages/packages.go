@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/jsmestad/syncai/internal/load"
 )
 
 type Manifest struct {
@@ -83,10 +84,7 @@ func Save(path string, m *Manifest) error {
 		return err
 	}
 	raw = append(raw, '\n')
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, raw, 0o644)
+	return load.WriteFileReplacing(filepath.Dir(path), filepath.Base(path), raw, 0o644)
 }
 
 func (m *Manifest) Normalize() {
@@ -198,13 +196,10 @@ func ApplyPiSettings(ctx context.Context, home string, desired PiManifest) error
 		return err
 	}
 	raw = append(raw, '\n')
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return os.WriteFile(path, raw, 0o644)
+	return load.WriteFileReplacing(home, path, raw, 0o644)
 }
 
 func ApplyClaude(ctx context.Context, home string, desired ClaudeManifest) []error {

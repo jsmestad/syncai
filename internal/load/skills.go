@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jsmestad/syncai/internal/pathguard"
 	"github.com/jsmestad/syncai/internal/schema"
 )
 
@@ -133,18 +132,11 @@ func CopyDir(root, src, candidate string) error {
 }
 
 func copyFile(root, src, dst string, perm os.FileMode) error {
-	if err := MkdirAll(root, filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	path, err := pathguard.Resolve(root, dst)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, perm)
+	return WriteFileReplacing(root, dst, data, perm)
 }
 
 // ReadInstructions returns the body of <sourceRoot>/instructions/global.md

@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/jsmestad/syncai/internal/load"
@@ -276,7 +277,13 @@ func reverseModel(tool, model string, p *profiles.File) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	for role, id := range target {
+	roles := make([]string, 0, len(target))
+	for role := range target {
+		roles = append(roles, role)
+	}
+	sort.Strings(roles)
+	for _, role := range roles {
+		id := target[role]
 		if id == model {
 			return role, true
 		}

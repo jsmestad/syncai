@@ -3,6 +3,7 @@ package profiles
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -85,6 +86,20 @@ func TestLoadWithEnvironmentRejectsInvalidOverlay(t *testing.T) {
 
 	if _, err := LoadWithEnvironment(basePath, "openai", "work"); err == nil {
 		t.Fatal("expected invalid environment override to fail")
+	}
+}
+
+func TestResolveSortsFixedTargetsInErrors(t *testing.T) {
+	profile := &File{Fixed: map[string]map[string]string{
+		"zeta":  {"review": "zeta-review"},
+		"alpha": {"review": "alpha-review"},
+	}}
+	_, err := profile.Resolve("missing", "review")
+	if err == nil {
+		t.Fatal("expected missing target error")
+	}
+	if !strings.Contains(err.Error(), "fixed targets [alpha zeta]") {
+		t.Fatalf("fixed targets are not sorted in error: %v", err)
 	}
 }
 

@@ -3,6 +3,8 @@ package load
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -109,6 +111,45 @@ func TestWriteFileReplacingCreatesParents(t *testing.T) {
 	}
 	if _, err := os.Stat(deep); err != nil {
 		t.Errorf("file not created: %v", err)
+	}
+}
+
+func TestWriteFileReplacingCleansTemporaryFileWhenRenameFails(t *testing.T) {
+	d := t.TempDir()
+	path := filepath.Join(d, "occupied")
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFileReplacing(d, path, []byte("replacement"), 0o644); err == nil {
+		t.Fatal("write unexpectedly replaced a directory")
+	}
+	matches, err := filepath.Glob(filepath.Join(d, ".syncai-write-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("temporary files remain after failed replacement: %v", matches)
+	}
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		t.Fatalf("original directory changed after failed replacement: info=%v err=%v", info, err)
+	}
+}
+
+func TestWriteFileReplacingNearMaximumFilenameLength(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("near-NAME_MAX regression is supported on macOS and Linux")
+	}
+	d := t.TempDir()
+	path := filepath.Join(d, strings.Repeat("n", 250))
+	if err := WriteFileReplacing(d, path, []byte("content"), 0o644); err != nil {
+		t.Fatalf("writing near-NAME_MAX destination: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "content" {
+		t.Fatalf("content = %q, want content", got)
 	}
 }
 

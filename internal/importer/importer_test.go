@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/jsmestad/syncai/internal/profiles"
+	"github.com/jsmestad/syncai/internal/pull"
+	"github.com/jsmestad/syncai/internal/schema"
 )
 
 func writeFile(t *testing.T, path, body string) {
@@ -129,6 +131,46 @@ Body.
 	}
 	if strings.Contains(string(out), "model: openai-codex") {
 		t.Errorf("original model line should be replaced, got:\n%s", out)
+	}
+}
+
+func TestPiImportUsesCanonicalReverseModelPrecedence(t *testing.T) {
+	profile := &profiles.File{
+		ActiveProfile: "active",
+		Fixed: map[string]map[string]string{
+			"pi": {"fixed-role": "shared-model"},
+		},
+		Profiles: map[string]map[string]map[string]string{
+			"active": {"pi": {
+				"zeta-role":  "shared-model",
+				"alpha-role": "shared-model",
+			}},
+		},
+	}
+	wantRole, ok := pull.ReverseModel("pi", "shared-model", profile)
+	if !ok {
+		t.Fatal("canonical reverse lookup did not resolve shared-model")
+	}
+	if wantRole != "alpha-role" {
+		t.Fatalf("canonical reverse role = %q, want active-profile role alpha-role", wantRole)
+	}
+	agent := &schema.Agent{
+		Description: "An advisor.",
+		Fields: []schema.KV{
+			{Key: "description", Value: "An advisor."},
+			{Key: "model", Value: "shared-model"},
+			{Key: "fallbackModels", Value: "shared-model"},
+		},
+	}
+	out, err := piToSource(agent, profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), "modelRole: "+wantRole+"\n") {
+		t.Fatalf("Pi importer did not use canonical model role %q:\n%s", wantRole, out)
+	}
+	if !strings.Contains(string(out), "fallbackRoles: "+wantRole+"\n") {
+		t.Fatalf("Pi importer did not use canonical fallback role %q:\n%s", wantRole, out)
 	}
 }
 

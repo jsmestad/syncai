@@ -136,7 +136,6 @@ func Port(sourceRoot string, c Candidate, p *profiles.File) error {
 // agent. Most fields pass through; we add targets and scope, and reverse
 // the model/fallbackModels lookup back to roles when possible.
 func piToSource(a *schema.Agent, p *profiles.File) ([]byte, error) {
-	reverse := buildReverseMap(p, "pi")
 	var b strings.Builder
 	b.WriteString("---\n")
 	wroteTargets := false
@@ -144,7 +143,7 @@ func piToSource(a *schema.Agent, p *profiles.File) ([]byte, error) {
 	for _, kv := range a.Fields {
 		switch kv.Key {
 		case "model":
-			if role, ok := reverse[kv.Value]; ok {
+			if role, ok := pull.ReverseModel("pi", kv.Value, p); ok {
 				fmt.Fprintf(&b, "modelRole: %s\n", role)
 			} else {
 				// No clean reverse — pass through verbatim and note via a
@@ -153,7 +152,7 @@ func piToSource(a *schema.Agent, p *profiles.File) ([]byte, error) {
 				b.WriteString("# TODO: replace `model:` with `modelRole:` for cross-tool support\n")
 			}
 		case "fallbackModels":
-			roles := reverseList(kv.Value, reverse)
+			roles := reversePiModels(kv.Value, p)
 			if len(roles) > 0 {
 				fmt.Fprintf(&b, "fallbackRoles: %s\n", strings.Join(roles, ", "))
 			} else {
@@ -272,34 +271,11 @@ func codexToSource(name string, raw []byte, p *profiles.File) ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
-// buildReverseMap inverts profiles.<active>.<target> so we can look up
-// "openai-codex/gpt-5.5:high" → "reasoning". When multiple roles map to the
-// same model id, last-write-wins (the map is a hint, not authoritative).
-func buildReverseMap(p *profiles.File, target string) map[string]string {
-	out := map[string]string{}
-	if p == nil {
-		return out
-	}
-	if m, ok := p.Fixed[target]; ok {
-		for role, model := range m {
-			out[model] = role
-		}
-	}
-	if prof, ok := p.Profiles[p.ActiveProfile]; ok {
-		if m, ok := prof[target]; ok {
-			for role, model := range m {
-				out[model] = role
-			}
-		}
-	}
-	return out
-}
-
-func reverseList(csv string, reverse map[string]string) []string {
+func reversePiModels(csv string, p *profiles.File) []string {
 	parts := schema.SplitCSV(csv)
 	out := make([]string, 0, len(parts))
-	for _, m := range parts {
-		role, ok := reverse[m]
+	for _, model := range parts {
+		role, ok := pull.ReverseModel("pi", model, p)
 		if !ok {
 			return nil // any miss aborts — caller falls back to keeping fallbackModels verbatim
 		}
