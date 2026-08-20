@@ -5,9 +5,12 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/jsmestad/syncai/internal/config"
+	"github.com/jsmestad/syncai/internal/guidance"
 	"github.com/jsmestad/syncai/internal/load"
 	aipackages "github.com/jsmestad/syncai/internal/packages"
 	"github.com/jsmestad/syncai/internal/profiles"
+	"github.com/jsmestad/syncai/internal/renderers"
 	"github.com/spf13/cobra"
 )
 
@@ -25,28 +28,35 @@ func validateCommand() *cobra.Command {
 			return runValidate(cmd.OutOrStdout(), options)
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source)")
 	command.Flags().StringVar(&options.profile, "profile", "", "active model profile override")
 	return command
 }
 
 func runValidate(out io.Writer, options validateOptions) error {
-	if _, err := profiles.LoadWithProfile(filepath.Join(options.source, "model-profiles.json"), options.profile); err != nil {
-		return err
-	}
-	agents, err := load.Agents(filepath.Join(options.source, "agents"))
+	source, err := config.ResolveSource(options.source)
 	if err != nil {
 		return err
 	}
-	skills, err := load.SkillDirs(options.source, "")
+	if _, err := profiles.LoadWithProfile(filepath.Join(source, "model-profiles.json"), options.profile); err != nil {
+		return err
+	}
+	agents, err := load.Agents(filepath.Join(source, "agents"))
 	if err != nil {
 		return err
 	}
-	extensions, err := load.Extensions(options.source, "")
+	skills, err := load.SkillDirs(source, "")
 	if err != nil {
 		return err
 	}
-	if _, err := aipackages.Load(aipackages.DefaultPath(options.source)); err != nil {
+	if err := renderers.ValidateSkillConflicts(skills, guidance.BuiltInSkills()); err != nil {
+		return err
+	}
+	extensions, err := load.Extensions(source, "")
+	if err != nil {
+		return err
+	}
+	if _, err := aipackages.Load(aipackages.DefaultPath(source)); err != nil {
 		return err
 	}
 	scopeCounts := map[string]int{}

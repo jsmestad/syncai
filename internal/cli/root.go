@@ -70,6 +70,9 @@ func (a *App) Root() *cobra.Command {
 	root.SetOut(a.streams.Out)
 	root.SetErr(a.streams.Err)
 	root.AddCommand(
+		guideCommand(),
+		updateCommand(),
+		a.initCommand(),
 		a.renderCommand(),
 		validateCommand(),
 		setProfileCommand(),

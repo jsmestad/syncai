@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jsmestad/syncai/internal/config"
 	aipackages "github.com/jsmestad/syncai/internal/packages"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +38,7 @@ func packagesSubcommand(use, short string, run func(context.Context, io.Writer, 
 			return run(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), options)
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source)")
 	command.Flags().StringVar(&options.out, "out", "", "install root (default: $HOME)")
 	command.Flags().StringVar(&options.scope, "scope", "", "machine scope (home|work); scoped Pi packages are excluded when empty")
 	return command
@@ -163,9 +164,9 @@ func isCancellationError(ctx context.Context, err error) bool {
 }
 
 func packageRoots(sourceRoot, out string) (source, installRoot string, err error) {
-	source, err = filepath.Abs(sourceRoot)
+	source, err = config.ResolveSource(sourceRoot)
 	if err != nil {
-		return "", "", fmt.Errorf("resolving source path %s: %w", sourceRoot, err)
+		return "", "", err
 	}
 	installRoot = out
 	if installRoot == "" {

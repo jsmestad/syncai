@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jsmestad/syncai/internal/config"
 	"github.com/jsmestad/syncai/internal/importer"
 	"github.com/jsmestad/syncai/internal/profiles"
 	"github.com/spf13/cobra"
@@ -31,7 +32,7 @@ port — their formats convert lossily). Specific names can be passed as args.`,
 			return runImport(cmd.Context(), cmd.OutOrStdout(), options, args)
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source)")
 	command.Flags().BoolVar(&options.all, "all", false, "port every auto-portable candidate (currently Pi only)")
 	return command
 }
@@ -44,9 +45,9 @@ func runImport(ctx context.Context, outWriter io.Writer, options importOptions, 
 	if err != nil {
 		return err
 	}
-	sourceRoot, err := filepath.Abs(options.source)
+	sourceRoot, err := config.ResolveSource(options.source)
 	if err != nil {
-		return fmt.Errorf("resolving source root %s: %w", options.source, err)
+		return err
 	}
 	candidates, err := importer.Scan(home, sourceRoot)
 	if err != nil {
@@ -124,7 +125,7 @@ func runImport(ctx context.Context, outWriter io.Writer, options importOptions, 
 		fmt.Fprintf(outWriter, "imported skill: %s ← %s [from %s]\n  → %s\n", candidate.Name, candidate.InputPath, candidate.Tool, candidate.SourcePath)
 	}
 	fmt.Fprintln(outWriter)
-	fmt.Fprintln(outWriter, "Review the new source files, edit as needed, then run `make ai-sync PROFILE=<home|work>`.")
+	fmt.Fprintln(outWriter, "Review the new source files, edit as needed, then run `syncai render --scope <home|work>`.")
 	return nil
 }
 

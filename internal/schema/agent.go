@@ -50,7 +50,7 @@ type Agent struct {
 	// Scope controls which dotfiles install profiles install the agent.
 	// nil/empty = universal (installs everywhere). A list like
 	// ["home", "work"] installs only under those profiles. Driven by
-	// `make ai-sync PROFILE=<home|work>` via syncai's --scope flag, and
+	// `syncai render --scope <home|work>`, and
 	// matched against the agent's `scope:` frontmatter field which accepts
 	// CSV (e.g. `scope: home, work`) for backward and forward compat with
 	// future profile names.

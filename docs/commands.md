@@ -2,12 +2,15 @@
 
 SyncAI writes progress and reports to stdout. The process prints returned errors to stderr and exits with status `1`; successful commands exit `0`. Warnings, drift refusal details, and best-effort prune failures also use stderr where noted.
 
-All source flags default to `ai-source`. All scope flags accept only `home`, `work`, or an empty value. Effectful render, status, import, pull, use-profile, and package orchestration checks cancellation between supported stages and passes context to external package commands. `validate` and `list` do not currently observe cancellation. `set-profile` checks once before entering synchronous persistence but cannot interrupt that write after it starts. Do not assume every command can stop before completion when interrupted.
+Source resolution uses the first available value: explicit `--source`, `SYNCAI_SOURCE`, the source saved by `syncai init`, then `./ai-source`. The saved config lives at `${XDG_CONFIG_HOME:-$HOME/.config}/syncai/config.json`. All scope flags accept only `home`, `work`, or an empty value. Effectful render, status, import, pull, use-profile, and package orchestration checks cancellation between supported stages and passes context to external package commands. `validate` and `list` do not currently observe cancellation. `set-profile` checks once before entering synchronous persistence but cannot interrupt that write after it starts. Do not assume every command can stop before completion when interrupted.
 
 ## Safety summary
 
 | Command | Read-only | Mutates install | Mutates source | Mutates home state |
 | --- | --- | --- | --- | --- |
+| `guide` | Yes | No | No | No |
+| `update` | No | Replaces the running SyncAI executable | No | No |
+| `init [source-dir]` | No | No | Creates a starter only when the selected directory is missing or empty | Saves the default source under the XDG config root |
 | `validate`, `list`, `status`, `packages status` | Yes | No | No | No |
 | `render --check`, `render --dry-run` | Yes | No | No | No |
 | `render --out <root>` | No | Only `<root>` | No | No manifest or package changes |
@@ -21,6 +24,32 @@ All source flags default to `ai-source`. All scope flags accept only `home`, `wo
 | `packages pull` | No | No | Yes | Reads installed package state |
 
 SyncAI-managed renderer, source, manifest, and Pi package file mutations validate their destination against the applicable output or source root where the implementation routes them through its path guards. Regular SyncAI-managed file writes use a temporary sibling followed by rename, directory copies reject nonregular source files, and manifest removal is limited to recorded paths resolved beneath the active output root. These constraints do not sandbox external tool commands invoked by `packages apply`.
+
+## `guide`
+
+```text
+syncai guide
+```
+
+Prints a self-contained workflow and mutation reference from the installed binary. SyncAI also renders a reserved built-in `syncai` skill to Pi, Claude Code, Codex, and Antigravity so those tools can discover the guide without repository access. OpenCode receives the guide pointer in its generated shared instructions. Oh My Pi currently has neither a rendered skills surface nor shared instructions.
+
+## `update`
+
+```text
+syncai update
+```
+
+Fetches the latest published GitHub release, selects the archive matching the current operating system and architecture, verifies the release tag and `checksums.txt` against SyncAI's embedded Ed25519 release public key, verifies the archive's SHA-256 digest, and atomically replaces the resolved running executable while preserving its permission bits. Development builds, version downgrades, invalid signatures, and unsupported operating systems are rejected. A symlinked invocation updates the symlink target.
+
+## `init`
+
+```text
+syncai init [source-dir]
+```
+
+Without an argument, `init` creates a safe starter source at `${XDG_CONFIG_HOME:-$HOME/.config}/syncai/ai-source`. With an argument, it registers that source directory instead. An existing nonempty source must parse and render successfully before SyncAI saves it; `init` does not rewrite it. A missing or empty selected directory receives the starter files.
+
+After validating the source through every renderer, `init` atomically saves its absolute path in `${XDG_CONFIG_HOME:-$HOME/.config}/syncai/config.json`. It does not render into tool configuration or apply packages.
 
 ## `validate`
 

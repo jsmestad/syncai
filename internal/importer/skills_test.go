@@ -68,6 +68,20 @@ func TestScanSkillsSkipsDotPrefixed(t *testing.T) {
 	}
 }
 
+func TestScanSkillsSkipsSyncAIBuiltIn(t *testing.T) {
+	home := t.TempDir()
+	source := t.TempDir()
+	writeSkillFile(t, filepath.Join(home, ".claude/skills/syncai/SKILL.md"), "---\nname: syncai\n---\n")
+
+	candidates, err := ScanSkills(home, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(candidates) != 0 {
+		t.Errorf("SyncAI built-in should be excluded, got %+v", candidates)
+	}
+}
+
 // S4: ScanSkills requires a SKILL.md inside the directory to treat it as a
 // candidate, guarding against unrelated junk directories.
 func TestScanSkillsRequiresSkillMD(t *testing.T) {

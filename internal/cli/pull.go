@@ -36,7 +36,7 @@ and require manual editing of the source file.`,
 			return runPull(cmd.Context(), a.renderers, cmd.OutOrStdout(), cmd.ErrOrStderr(), options, args)
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source)")
 	command.Flags().StringVar(&options.out, "out", "", "install root (default: $HOME)")
 	command.Flags().StringVar(&options.scope, "scope", "", "install scope filter (home|work)")
 	command.Flags().BoolVar(&options.all, "all", false, "pull every drifted file")
@@ -179,7 +179,7 @@ func runPull(ctx context.Context, available []renderers.Renderer, outWriter, err
 	if len(pulledNames) > 0 || extensionsPulled > 0 {
 		fmt.Fprintln(outWriter)
 		fmt.Fprintln(outWriter, "redistributing pulled changes to all targets…")
-		if err := runRender(ctx, available, outWriter, errWriter, renderOptions{source: options.source, out: options.out, scope: options.scope, force: true}); err != nil {
+		if err := runRender(ctx, available, outWriter, errWriter, renderOptions{source: source, out: options.out, scope: options.scope, force: true}); err != nil {
 			return fmt.Errorf("post-pull render: %w", err)
 		}
 	}

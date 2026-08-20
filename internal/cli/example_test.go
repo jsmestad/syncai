@@ -58,6 +58,14 @@ func TestCompleteExampleRendersAllTargets(t *testing.T) {
 		}
 	}
 	for _, path := range []string{
+		filepath.Join(".pi", "agent", "skills", "syncai", "SKILL.md"),
+		filepath.Join(".claude", "skills", "syncai", "SKILL.md"),
+		filepath.Join(".codex", "skills", "syncai", "SKILL.md"),
+		filepath.Join(".gemini", "antigravity-cli", "plugins", "dfiles", "skills", "syncai", "SKILL.md"),
+	} {
+		assertFileContains(t, out, path, "name: syncai\n", "syncai guide")
+	}
+	for _, path := range []string{
 		filepath.Join(".pi", "agent", "AGENTS.md"),
 		filepath.Join(".claude", "CLAUDE.md"),
 		filepath.Join(".codex", "AGENTS.md"),

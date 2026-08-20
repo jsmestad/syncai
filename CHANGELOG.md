@@ -9,8 +9,11 @@ All notable user-facing changes to SyncAI are documented here.
 - One canonical source format for agents, skills, shared instructions, Pi extensions, package inventories, semantic model profiles, and home or work overlays.
 - Deterministic rendering for Pi, Oh My Pi, Claude Code, Codex, OpenCode, and Antigravity CLI.
 - Validation, isolated rendering, installed-state status, bounded import, reversible pull, profile selection, drift protection, and package reconciliation commands.
+- XDG-compliant `syncai init` setup and saved source discovery that works from any directory.
+- An installed `syncai guide` and built-in discovery skill for coding agents.
+- Authenticated in-place updates with signed release metadata, checksum verification, downgrade prevention, and atomic executable replacement.
 - Filesystem containment, traversal rejection, symlink protections, atomic writes, deterministic golden fixtures, public-source scanning, static analysis, and vulnerability analysis.
-- Signed macOS and Linux release archives with SHA-256 checksums, archive SBOMs, and GitHub artifact attestations.
+- Signed macOS and Linux release archives with SHA-256 checksums, archive SBOMs, GitHub artifact attestations, and a dedicated Ed25519 update key.
 
 ### Compatibility
 

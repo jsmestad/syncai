@@ -42,9 +42,9 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 		}
 		written = append(written, path)
 	}
-	if len(in.SkillDirs) > 0 {
+	if len(in.SkillDirs) > 0 || len(in.BuiltInSkills) > 0 {
 		skillDir := filepath.Join(outRoot, ".gemini", "antigravity-cli", "plugins", "dfiles", "skills")
-		paths, err := writeSkills(outRoot, skillDir, in.SkillDirs)
+		paths, err := renderers.WriteSkills(outRoot, skillDir, in.SkillDirs, in.BuiltInSkills)
 		if err != nil {
 			return nil, err
 		}
@@ -132,20 +132,4 @@ func yamlString(value string) string {
 		return `""`
 	}
 	return string(raw)
-}
-
-func writeSkills(outRoot, dst string, skillDirs []string) ([]string, error) {
-	if err := load.MkdirAll(outRoot, dst, 0o755); err != nil {
-		return nil, err
-	}
-	var written []string
-	for _, src := range skillDirs {
-		name := filepath.Base(src)
-		target := filepath.Join(dst, name)
-		if err := load.CopyDir(outRoot, src, target); err != nil {
-			return nil, fmt.Errorf("copying antigravity skill %s: %w", name, err)
-		}
-		written = append(written, target)
-	}
-	return written, nil
 }

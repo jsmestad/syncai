@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/jsmestad/syncai/internal/config"
 	"github.com/jsmestad/syncai/internal/profiles"
 	"github.com/jsmestad/syncai/internal/renderers"
 	"github.com/jsmestad/syncai/internal/schema"
@@ -48,7 +49,7 @@ func (a *App) useProfileCommand() *cobra.Command {
 			return runUseProfile(cmd.Context(), a.renderers, cmd.OutOrStdout(), cmd.ErrOrStderr(), options, args[0])
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source)")
 	command.Flags().StringVar(&options.scope, "scope", "", "machine environment (home|work), required")
 	command.Flags().BoolVar(&options.force, "force", false, "overwrite locally-edited rendered files")
 	return command
@@ -71,7 +72,11 @@ func runUseProfile(ctx context.Context, available []renderers.Renderer, outWrite
 	if err != nil {
 		return err
 	}
-	profile, err := profiles.LoadWithEnvironment(filepath.Join(options.source, "model-profiles.json"), profileName, options.scope)
+	source, err := config.ResolveSource(options.source)
+	if err != nil {
+		return err
+	}
+	profile, err := profiles.LoadWithEnvironment(filepath.Join(source, "model-profiles.json"), profileName, options.scope)
 	if err != nil {
 		return err
 	}

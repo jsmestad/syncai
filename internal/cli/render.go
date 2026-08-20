@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/jsmestad/syncai/internal/check"
+	"github.com/jsmestad/syncai/internal/config"
+	"github.com/jsmestad/syncai/internal/guidance"
 	"github.com/jsmestad/syncai/internal/load"
 	"github.com/jsmestad/syncai/internal/manifest"
 	"github.com/jsmestad/syncai/internal/pathguard"
@@ -38,7 +40,7 @@ func (a *App) renderCommand() *cobra.Command {
 			return runRender(cmd.Context(), a.renderers, cmd.OutOrStdout(), cmd.ErrOrStderr(), options)
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory (ignored when --project is set)")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source; ignored with --project)")
 	command.Flags().StringVar(&options.out, "out", "", "output root (default: $HOME). Use to render into a temp dir for inspection.")
 	command.Flags().StringVar(&options.profile, "profile", "", "active model profile override (default: env AI_MODEL_PROFILE / PI_MODEL_PROFILE / ~/.pi/agent/active-model-profile.json / activeProfile field)")
 	command.Flags().StringVar(&options.project, "project", "", "render project-local: source from <path>/.pi/agent-source, output under <path>")
@@ -330,7 +332,7 @@ func runCheckMode(ctx context.Context, available []renderers.Renderer, outWriter
 	for _, diff := range diffs {
 		fmt.Fprintf(outWriter, "  - %s\n", diff)
 	}
-	fmt.Fprintln(outWriter, "\nRun: make ai-sync (or `syncai render` directly)")
+	fmt.Fprintln(outWriter, "\nRun `syncai status` to inspect installed drift or `syncai render` to update the install.")
 	return fmt.Errorf("%d file(s) drifted", len(diffs))
 }
 
@@ -342,9 +344,9 @@ func resolvePaths(options renderOptions) (source, out string, projectMode bool, 
 		}
 		return filepath.Join(project, ".pi", "agent-source"), project, true, nil
 	}
-	source, err = filepath.Abs(options.source)
+	source, err = config.ResolveSource(options.source)
 	if err != nil {
-		return "", "", false, fmt.Errorf("resolving source path %s: %w", options.source, err)
+		return "", "", false, err
 	}
 	out = options.out
 	if out == "" {
@@ -397,6 +399,7 @@ func loadInputs(sourceRoot, profileOverride string, projectMode bool, scope stri
 		Agents:              agents,
 		Profiles:            profile,
 		SkillDirs:           skills,
+		BuiltInSkills:       guidance.BuiltInSkills(),
 		Extensions:          extensions,
 		InstructionsGlobal:  global,
 		InstructionPrefixes: prefixes,

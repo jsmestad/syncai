@@ -1,6 +1,6 @@
 # Canonical source format
 
-SyncAI reads one source directory, `ai-source/` by default, and projects its contents into tool-specific configuration. Start from [`examples/complete`](../examples/complete) when creating a source tree.
+SyncAI reads one canonical source directory and projects its contents into tool-specific configuration. `syncai init` defaults that source to `${XDG_CONFIG_HOME:-$HOME/.config}/syncai/ai-source`; explicit `--source`, `SYNCAI_SOURCE`, and the saved init source can select another location. Start from [`examples/complete`](../examples/complete) when you want a larger reference than the generated starter.
 
 ## Directory contract
 
@@ -104,7 +104,7 @@ Pi, Claude Code, Codex, OpenCode, and Antigravity currently ignore `fallbackRole
 
 ## Skills
 
-Each immediate subdirectory of `skills/` is one skill and is copied verbatim. Pi, Claude Code, Codex, and Antigravity receive skill directories. Oh My Pi and OpenCode do not.
+Each immediate subdirectory of `skills/` is one skill and is copied verbatim. Pi, Claude Code, Codex, and Antigravity receive skill directories. Oh My Pi and OpenCode do not. The name `syncai` is reserved for SyncAI's built-in discovery skill and must not appear as `skills/syncai` in canonical source.
 
 `SKILL.md` may include `scope: home`, `scope: work`, or CSV `scope: home, work` in leading `---` frontmatter. Missing frontmatter, a missing `SKILL.md`, or a missing `scope` field makes the directory universal. Unknown scopes are rejected. Other skill fields are not interpreted by SyncAI.
 

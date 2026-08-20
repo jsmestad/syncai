@@ -119,13 +119,37 @@ The final command prints all six target roots:
 
 Use `--scope home` or `--scope work` to select scoped agents, skills, extensions, package settings, and environment model overrides. Omit `--out` only when you are ready to render into your home directory.
 
-## Install
+## Getting started
+
+Install the latest macOS Apple Silicon release into `~/.local/bin`:
+
+```bash
+mkdir -p "$HOME/.local/bin" && curl -fsSL https://github.com/jsmestad/syncai/releases/latest/download/syncai_darwin_arm64.tar.gz | tar -xz -C "$HOME/.local/bin" syncai
+```
+
+Release archives also use `darwin_amd64`, `linux_arm64`, and `linux_amd64` suffixes. Make sure `~/.local/bin` is on your `PATH`. Once installed, `syncai update` downloads the matching latest release, verifies its signed release tag and checksums, rejects downgrades, and atomically replaces the running binary.
+
+You can also install from source:
 
 ```bash
 go install github.com/jsmestad/syncai/cmd/syncai@latest
+syncai init
+syncai validate
+syncai guide
+syncai render --out "$(mktemp -d)"
 ```
 
-SyncAI defaults to `ai-source/` and renders to `$HOME`. Start with `syncai validate`, inspect an isolated render with `syncai render --out "$(mktemp -d)"`, then read the [command safety reference](docs/commands.md) before rendering into your home directory.
+`syncai init` creates a starter source at `${XDG_CONFIG_HOME:-$HOME/.config}/syncai/ai-source` and saves that location in `${XDG_CONFIG_HOME:-$HOME/.config}/syncai/config.json`. The saved source works from any directory. `syncai guide` prints the workflows and mutation boundaries from the installed binary, so people and coding agents do not need this repository to operate SyncAI safely. Inspect the isolated render, then run `syncai render` without `--out` when you are ready to install it under your home directory.
+
+Every render installs a small built-in `syncai` skill for Pi, Claude Code, Codex, and Antigravity. The skill tells a coding agent when SyncAI owns the requested configuration and directs it to the installed guide. OpenCode receives the same pointer in its generated instructions. Oh My Pi does not currently expose a rendered skill or shared-instruction surface, so invoke `syncai guide` explicitly when working there. The built-in skill name is reserved; do not create `skills/syncai` in canonical source.
+
+Already have a source tree? Register it without moving or rewriting it:
+
+```bash
+syncai init ~/path/to/ai-source
+```
+
+An explicit `--source` wins over `SYNCAI_SOURCE`, which wins over the saved source. Without any of those, SyncAI keeps the original `./ai-source` fallback. Read the [command safety reference](docs/commands.md) before the first home render.
 
 ## What one source tree controls
 
@@ -137,7 +161,7 @@ SyncAI defaults to `ai-source/` and renders to `$HOME`. Start with `syncai valid
 | TypeScript extensions | Yes | No | No | No | No | No |
 | Package and plugin inventory | Yes | No | Yes | Yes | No | Yes |
 
-Agents use semantic roles such as `exploration` and `review` instead of embedding one provider model in every prompt. Toggleable profiles select model maps for Pi, Oh My Pi, and OpenCode. Fixed maps hold vendor-specific models for Claude Code, Codex, and Antigravity. `home` and `work` overlays can replace individual role mappings without duplicating whole profiles.
+Agents use semantic roles such as `code-fast` and `code-high` instead of embedding one provider model in every prompt. Toggleable profiles select model maps for Pi, Oh My Pi, and OpenCode. Fixed maps hold vendor-specific models for Claude Code, Codex, and Antigravity. `home` and `work` overlays can replace individual role mappings without duplicating whole profiles.
 
 SyncAI also supports reversible workflows:
 

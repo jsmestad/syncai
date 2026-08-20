@@ -35,7 +35,7 @@ not be silently overwritten.`,
 			return runStatus(cmd.Context(), a.renderers, cmd.OutOrStdout(), options)
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source)")
 	command.Flags().StringVar(&options.out, "out", "", "install root (default: $HOME)")
 	command.Flags().StringVar(&options.scope, "scope", "", "install scope filter (home|work)")
 	return command
@@ -88,15 +88,15 @@ func runStatus(ctx context.Context, available []renderers.Renderer, outWriter io
 	if err != nil {
 		return err
 	}
-	untracked, err := importer.Scan(home, options.source)
+	untracked, err := importer.Scan(home, source)
 	if err != nil {
 		return err
 	}
-	extensionUntracked, err := importer.ScanExtensions(home, options.source)
+	extensionUntracked, err := importer.ScanExtensions(home, source)
 	if err != nil {
 		return err
 	}
-	skillUntracked, err := importer.ScanSkills(home, options.source)
+	skillUntracked, err := importer.ScanSkills(home, source)
 	if err != nil {
 		return err
 	}

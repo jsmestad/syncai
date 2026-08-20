@@ -21,13 +21,66 @@ func TestRootHelpListsCommands(t *testing.T) {
 	}
 
 	help := stdout.String()
-	for _, command := range []string{"render", "validate", "set-profile", "use-profile", "import", "status", "pull", "list", "packages"} {
+	for _, command := range []string{"guide", "update", "init", "render", "validate", "set-profile", "use-profile", "import", "status", "pull", "list", "packages"} {
 		if !strings.Contains(help, command) {
 			t.Errorf("help does not list %q:\n%s", command, help)
 		}
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("help wrote to stderr: %q", stderr.String())
+	}
+}
+
+func TestGuideExplainsDiscoveryAndMutationBoundaries(t *testing.T) {
+	var output bytes.Buffer
+	app := New(Streams{In: strings.NewReader(""), Out: &output, Err: &output})
+
+	if err := app.Execute(context.Background(), []string{"guide"}); err != nil {
+		t.Fatalf("executing guide: %v", err)
+	}
+	for _, expected := range []string{
+		"syncai init\n",
+		"syncai validate\n",
+		"syncai render --out",
+		"syncai status\n",
+		"syncai pull\n",
+		"syncai import\n",
+		"syncai use-profile",
+		"Mutation boundaries",
+		"`--source`, `SYNCAI_SOURCE`, the source saved by `syncai init`, then `./ai-source`",
+	} {
+		if !strings.Contains(output.String(), expected) {
+			t.Errorf("guide does not contain %q:\n%s", expected, output.String())
+		}
+	}
+}
+
+func TestValidateRejectsSourceSkillReservedBySyncAI(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "ai-source")
+	if _, err := ensureSource(source); err != nil {
+		t.Fatal(err)
+	}
+	reserved := filepath.Join(source, "skills", "syncai")
+	if err := os.MkdirAll(reserved, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(reserved, "SKILL.md"), []byte("---\nname: syncai\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := runValidate(&bytes.Buffer{}, validateOptions{source: source, profile: "openai"})
+	if err == nil || !strings.Contains(err.Error(), "conflicts with a built-in SyncAI skill") {
+		t.Fatalf("validate error = %v", err)
+	}
+}
+
+func TestListIncludesSyncAIBuiltInSkill(t *testing.T) {
+	var output bytes.Buffer
+	if err := runList(&output, &bytes.Buffer{}, listOptions{source: completeExampleSource(t)}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "syncai [built-in]") {
+		t.Fatalf("list output = %q", output.String())
 	}
 }
 
@@ -150,6 +203,7 @@ func TestRepeatedExecuteDoesNotLeakRenderFlags(t *testing.T) {
 
 	assertPathAbsent(t, homeOutput, filepath.Join(".pi", "agent", "skills", "review-dag", "SKILL.md"))
 	assertFileContains(t, allOutput, filepath.Join(".pi", "agent", "skills", "review-dag", "SKILL.md"), "name: review-dag\n")
+	assertFileContains(t, homeOutput, filepath.Join(".pi", "agent", "skills", "syncai", "SKILL.md"), "name: syncai\n")
 }
 
 func TestRootPreservesCommandFlagsAndRelationships(t *testing.T) {
@@ -159,16 +213,16 @@ func TestRootPreservesCommandFlagsAndRelationships(t *testing.T) {
 		path     []string
 		defaults map[string]string
 	}{
-		{path: []string{"render"}, defaults: map[string]string{"source": "ai-source", "out": "", "profile": "", "project": "", "scope": "", "check": "false", "dry-run": "false", "force": "false"}},
-		{path: []string{"validate"}, defaults: map[string]string{"source": "ai-source", "profile": ""}},
-		{path: []string{"use-profile"}, defaults: map[string]string{"source": "ai-source", "scope": "", "force": "false"}},
-		{path: []string{"import"}, defaults: map[string]string{"source": "ai-source", "all": "false"}},
-		{path: []string{"status"}, defaults: map[string]string{"source": "ai-source", "out": "", "scope": ""}},
-		{path: []string{"pull"}, defaults: map[string]string{"source": "ai-source", "out": "", "scope": "", "all": "false"}},
-		{path: []string{"list"}, defaults: map[string]string{"source": "ai-source", "scope": ""}},
-		{path: []string{"packages", "status"}, defaults: map[string]string{"source": "ai-source", "out": "", "scope": ""}},
-		{path: []string{"packages", "apply"}, defaults: map[string]string{"source": "ai-source", "out": "", "scope": ""}},
-		{path: []string{"packages", "pull"}, defaults: map[string]string{"source": "ai-source", "out": "", "scope": ""}},
+		{path: []string{"render"}, defaults: map[string]string{"source": "", "out": "", "profile": "", "project": "", "scope": "", "check": "false", "dry-run": "false", "force": "false"}},
+		{path: []string{"validate"}, defaults: map[string]string{"source": "", "profile": ""}},
+		{path: []string{"use-profile"}, defaults: map[string]string{"source": "", "scope": "", "force": "false"}},
+		{path: []string{"import"}, defaults: map[string]string{"source": "", "all": "false"}},
+		{path: []string{"status"}, defaults: map[string]string{"source": "", "out": "", "scope": ""}},
+		{path: []string{"pull"}, defaults: map[string]string{"source": "", "out": "", "scope": "", "all": "false"}},
+		{path: []string{"list"}, defaults: map[string]string{"source": "", "scope": ""}},
+		{path: []string{"packages", "status"}, defaults: map[string]string{"source": "", "out": "", "scope": ""}},
+		{path: []string{"packages", "apply"}, defaults: map[string]string{"source": "", "out": "", "scope": ""}},
+		{path: []string{"packages", "pull"}, defaults: map[string]string{"source": "", "out": "", "scope": ""}},
 	}
 	for _, test := range tests {
 		command, _, err := root.Find(test.path)

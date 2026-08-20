@@ -5,6 +5,8 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/jsmestad/syncai/internal/config"
+	"github.com/jsmestad/syncai/internal/guidance"
 	"github.com/jsmestad/syncai/internal/load"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +28,7 @@ writing any files or touching the manifest.`,
 			return runList(cmd.OutOrStdout(), cmd.ErrOrStderr(), options)
 		},
 	}
-	command.Flags().StringVar(&options.source, "source", "ai-source", "canonical source directory")
+	command.Flags().StringVar(&options.source, "source", "", "canonical source directory (default: SYNCAI_SOURCE, saved init source, or ./ai-source)")
 	command.Flags().StringVar(&options.scope, "scope", "", "install scope filter (home|work). Empty = list everything.")
 	return command
 }
@@ -35,9 +37,9 @@ func runList(outWriter, errWriter io.Writer, options listOptions) error {
 	if err := validateScope(options.scope); err != nil {
 		return err
 	}
-	source, err := filepath.Abs(options.source)
+	source, err := config.ResolveSource(options.source)
 	if err != nil {
-		return fmt.Errorf("resolving source path %s: %w", options.source, err)
+		return err
 	}
 
 	agents, err := load.Agents(filepath.Join(source, "agents"))
@@ -76,9 +78,13 @@ func runList(outWriter, errWriter io.Writer, options listOptions) error {
 		}
 	}
 
-	fmt.Fprintf(outWriter, "\nskills (%d/%d):\n", len(matchedSkills), len(allSkills))
+	builtInSkills := guidance.BuiltInSkills()
+	fmt.Fprintf(outWriter, "\nskills (%d/%d):\n", len(matchedSkills)+len(builtInSkills), len(allSkills)+len(builtInSkills))
 	for _, skill := range matchedSkills {
 		fmt.Fprintf(outWriter, "  %s\n", filepath.Base(skill))
+	}
+	for _, skill := range builtInSkills {
+		fmt.Fprintf(outWriter, "  %s [built-in]\n", skill.Name)
 	}
 	if options.scope != "" && len(matchedSkills) < len(allSkills) {
 		matchedSet := map[string]bool{}

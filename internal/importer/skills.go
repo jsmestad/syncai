@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jsmestad/syncai/internal/guidance"
 	"github.com/jsmestad/syncai/internal/load"
 )
 
@@ -58,7 +59,7 @@ func ScanSkills(homeDir, sourceRoot string) ([]SkillCandidate, error) {
 			return nil, err
 		}
 		for _, e := range entries {
-			if strings.HasPrefix(e.Name(), ".") || !e.IsDir() {
+			if strings.HasPrefix(e.Name(), ".") || guidance.IsBuiltInSkill(e.Name()) || !e.IsDir() {
 				continue
 			}
 			if known[e.Name()] {
