@@ -1,9 +1,13 @@
 {
   "profiles": {
-    "focused": {
-      "opencode": {
-        "review": "work-sample/compass-review"
+    "mixed": {
+      "pi": {
+        "code-high": "anthropic/claude-opus-5:xhigh"
+      },
+      "omp": {
+        "code-high": "anthropic/claude-opus-4-8:xhigh"
       }
     }
-  }
+  },
+  "fixed": {}
 }

@@ -83,7 +83,7 @@ func TestExecuteCanceledContextPreventsRenderMutation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := app.Execute(ctx, []string{"render", "--source", completeExampleSource(t), "--out", out, "--profile", "balanced"})
+	err := app.Execute(ctx, []string{"render", "--source", completeExampleSource(t), "--out", out, "--profile", "openai"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Execute error = %v, want context.Canceled", err)
 	}
@@ -98,7 +98,7 @@ func TestRootCommandsHonorCobraWriterOverride(t *testing.T) {
 	app := New(Streams{In: strings.NewReader(""), Out: &appOutput, Err: &bytes.Buffer{}})
 	root := app.Root()
 	root.SetOut(&commandOutput)
-	root.SetArgs([]string{"validate", "--source", completeExampleSource(t), "--profile", "balanced"})
+	root.SetArgs([]string{"validate", "--source", completeExampleSource(t), "--profile", "openai"})
 
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("executing validate: %v", err)
@@ -115,7 +115,7 @@ func TestRenderReturnsDefaultOutputRootError(t *testing.T) {
 	t.Setenv("HOME", "")
 	app := New(Streams{In: strings.NewReader(""), Out: &bytes.Buffer{}, Err: &bytes.Buffer{}})
 
-	err := app.Execute(context.Background(), []string{"render", "--source", completeExampleSource(t), "--profile", "balanced"})
+	err := app.Execute(context.Background(), []string{"render", "--source", completeExampleSource(t), "--profile", "openai"})
 	if err == nil || !strings.Contains(err.Error(), "resolving default output root") {
 		t.Fatalf("expected contextual home resolution error, got %v", err)
 	}
@@ -139,17 +139,17 @@ func TestRepeatedExecuteDoesNotLeakRenderFlags(t *testing.T) {
 	homeOutput := t.TempDir()
 	allOutput := t.TempDir()
 
-	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", homeOutput, "--profile", "balanced", "--scope", "home"}); err != nil {
+	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", homeOutput, "--profile", "openai", "--scope", "home"}); err != nil {
 		t.Fatalf("executing scoped render: %v", err)
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", allOutput, "--profile", "balanced"}); err != nil {
+	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", allOutput, "--profile", "openai"}); err != nil {
 		t.Fatalf("executing unscoped render: %v", err)
 	}
 
-	assertPathAbsent(t, homeOutput, filepath.Join(".pi", "agent", "agents", "reviewer.md"))
-	assertFileContains(t, allOutput, filepath.Join(".pi", "agent", "agents", "reviewer.md"), "model: example-lab/orbit-large\n")
+	assertPathAbsent(t, homeOutput, filepath.Join(".pi", "agent", "skills", "review-dag", "SKILL.md"))
+	assertFileContains(t, allOutput, filepath.Join(".pi", "agent", "skills", "review-dag", "SKILL.md"), "name: review-dag\n")
 }
 
 func TestRootPreservesCommandFlagsAndRelationships(t *testing.T) {

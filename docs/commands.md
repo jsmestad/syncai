@@ -28,7 +28,7 @@ SyncAI-managed renderer, source, manifest, and Pi package file mutations validat
 syncai validate [--source <dir>] [--profile <name>]
 ```
 
-Parses the base model catalog, agents, skill scopes, extensions, and package manifest without writing. Success prints a count such as `ok: parsed 2 agents, 1 skill dirs, 1 extensions (scopes: map[...])` to stdout. Parse and validation errors go to stderr through the process boundary and exit `1`.
+Parses the base model catalog, agents, skill scopes, extensions, and package manifest without writing. Success prints a count such as `ok: parsed 2 agents, 3 skill dirs, 2 extensions (scopes: map[...])` to stdout. Parse and validation errors go to stderr through the process boundary and exit `1`.
 
 This command does not load environment overlays, instructions, or run renderers. Use an isolated render to catch missing model-role mappings and renderer-specific errors.
 

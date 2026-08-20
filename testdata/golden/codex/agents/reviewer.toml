@@ -1,8 +1,0 @@
-name = "reviewer"
-description = "Reviews completed changes for correctness and maintainability."
-model = "example-codex-reviewer"
-model_reasoning_effort = "high"
-sandbox_mode = "read-only"
-developer_instructions = '''
-Review the completed change against its stated requirements and report only actionable findings.
-'''

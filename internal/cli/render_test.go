@@ -56,7 +56,7 @@ func TestRenderDoesNotReplaceManifestWhenOutputClassificationFails(t *testing.T)
 
 	app := New(Streams{In: strings.NewReader(""), Out: &bytes.Buffer{}, Err: &bytes.Buffer{}})
 	app.renderers = []renderers.Renderer{missingOutputRenderer{path: filepath.Join(t.TempDir(), "missing")}}
-	err = app.Execute(context.Background(), []string{"render", "--source", completeExampleSource(t), "--profile", "balanced"})
+	err = app.Execute(context.Background(), []string{"render", "--source", completeExampleSource(t), "--profile", "openai"})
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected missing output error, got %v", err)
 	}
@@ -111,7 +111,7 @@ func TestRunCheckModePreservesCodexRTKInclude(t *testing.T) {
 	out := t.TempDir()
 	var stdout bytes.Buffer
 	app := New(Streams{In: strings.NewReader(""), Out: &stdout, Err: &bytes.Buffer{}})
-	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", out, "--profile", "balanced"}); err != nil {
+	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", out, "--profile", "openai"}); err != nil {
 		t.Fatalf("rendering complete example: %v", err)
 	}
 
@@ -125,7 +125,7 @@ func TestRunCheckModePreservesCodexRTKInclude(t *testing.T) {
 	}
 
 	stdout.Reset()
-	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", out, "--profile", "balanced", "--check"}); err != nil {
+	if err := app.Execute(context.Background(), []string{"render", "--source", source, "--out", out, "--profile", "openai", "--check"}); err != nil {
 		t.Fatalf("expected RTK-preserving render check to pass: %v", err)
 	}
 }

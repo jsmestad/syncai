@@ -49,7 +49,7 @@ The first command lists importable resources without changing anything. The seco
 
 ### Change model providers without rewriting agents
 
-You switched from an Anthropic subscription to OpenAI. Your agent definitions should not care. Define `anthropic` and `openai` once in `model-profiles.json`, keep semantic roles such as `exploration` and `review` in the agent files, then switch the active profile:
+You switched from an Anthropic subscription to OpenAI. Your agent definitions should not care. Define `claude` and `openai` profiles once in `model-profiles.json`, keep semantic roles such as `code-fast` and `code-high` in the agent files, then switch the active profile:
 
 ```bash
 syncai render --out "$(mktemp -d)" --profile openai --scope home
@@ -101,8 +101,8 @@ Prerequisite: Go 1.25 or 1.26 and a checkout of this repository. This entire exa
 SYNCAI_ROOT="$(mktemp -d)"
 mkdir -p "$SYNCAI_ROOT/bin" "$SYNCAI_ROOT/rendered"
 GOCACHE="$SYNCAI_ROOT/go-build" GOMODCACHE="$SYNCAI_ROOT/go-mod" GOBIN="$SYNCAI_ROOT/bin" go install ./cmd/syncai
-"$SYNCAI_ROOT/bin/syncai" validate --source examples/complete --profile balanced
-"$SYNCAI_ROOT/bin/syncai" render --source examples/complete --out "$SYNCAI_ROOT/rendered" --profile balanced
+"$SYNCAI_ROOT/bin/syncai" validate --source examples/complete --profile openai
+"$SYNCAI_ROOT/bin/syncai" render --source examples/complete --out "$SYNCAI_ROOT/rendered" --profile openai
 for target in .pi .omp .claude .codex .config/opencode .gemini/antigravity-cli; do test -d "$SYNCAI_ROOT/rendered/$target" && printf '%s\n' "$target"; done
 ```
 

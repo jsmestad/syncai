@@ -1,8 +1,0 @@
-name = "explorer"
-description = "Finds relevant code and reports concise evidence."
-model = "example-codex-explorer"
-model_reasoning_effort = "medium"
-sandbox_mode = "read-only"
-developer_instructions = '''
-Inspect the requested area, identify the smallest relevant file set, and report findings with file paths.
-'''

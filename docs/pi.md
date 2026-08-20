@@ -34,11 +34,11 @@ Global rendering writes:
 
 ## Model and thinking resolution
 
-An agent's `modelRole` resolves through the active profile's `pi` map. For example, `exploration` can resolve to `example-lab/orbit-small:medium`. SyncAI emits:
+An agent's `modelRole` resolves through the active profile's `pi` map. For example, `code-fast` resolves to `openai-codex/gpt-5.6-luna:high` in the complete example's `openai` profile. SyncAI emits:
 
 ```yaml
-model: example-lab/orbit-small
-thinking: medium
+model: openai-codex/gpt-5.6-luna
+thinking: high
 ```
 
 Recognized thinking suffixes are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`. An unrecognized final suffix remains part of the model identifier. Pi resolution currently uses `modelRole` directly; `fallbackRoles` is retained in canonical source but is not used by the Pi renderer.

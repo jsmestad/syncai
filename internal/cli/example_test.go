@@ -15,48 +15,47 @@ import (
 
 func TestCompleteExampleRendersAllTargets(t *testing.T) {
 	source := completeExampleSource(t)
-	out := renderCompleteExample(t, source, "balanced", "")
+	out := renderCompleteExample(t, source, "openai", "")
 
-	assertFileContains(t, out, filepath.Join(".pi", "agent", "agents", "explorer.md"),
-		"model: example-lab/orbit-small\n",
-		"thinking: medium\n",
-		"tools: read, bash, grep, find\n",
+	assertFileContains(t, out, filepath.Join(".pi", "agent", "agents", "worker.md"),
+		"model: openai-codex/gpt-5.6-luna\n",
+		"thinking: high\n",
+		"tools: read, bash, edit, write, grep, find, ls\n",
 	)
-	assertFileContains(t, out, filepath.Join(".omp", "agent", "agents", "explorer.md"),
-		"model: example-lab/orbit-small\n",
-		"thinkingLevel: medium\n",
-		"tools: read, bash, grep, glob\n",
+	assertFileContains(t, out, filepath.Join(".omp", "agent", "agents", "worker.md"),
+		"model: openai-codex/gpt-5.6-luna\n",
+		"thinkingLevel: high\n",
+		"tools: read, bash, edit, write, grep, glob\n",
 	)
-	assertFileContains(t, out, filepath.Join(".claude", "agents", "explorer.md"),
-		"model: example-claude-explorer\n",
-		"tools: Read, Bash, Grep, Glob\n",
+	assertFileContains(t, out, filepath.Join(".claude", "agents", "worker.md"),
+		"model: haiku\n",
+		"tools: Read, Bash, Edit, Write, Grep, Glob\n",
 	)
-	assertFileContains(t, out, filepath.Join(".codex", "agents", "explorer.toml"),
-		"model = \"example-codex-explorer\"\n",
-		"model_reasoning_effort = \"medium\"\n",
-		"sandbox_mode = \"read-only\"\n",
+	assertFileContains(t, out, filepath.Join(".codex", "agents", "worker.toml"),
+		"model = \"gpt-5.6-luna\"\n",
+		"model_reasoning_effort = \"high\"\n",
 	)
-	assertFileContains(t, out, filepath.Join(".config", "opencode", "agents", "explorer.md"),
-		"model: example-lab/orbit-small\n",
-		"  edit: deny\n",
+	assertFileContains(t, out, filepath.Join(".config", "opencode", "agents", "worker.md"),
+		"model: openai/gpt-5.6-luna\n",
+		"  edit: allow\n",
 		"  bash: allow\n",
 		"  read: allow\n",
 	)
-	assertFileContains(t, out, filepath.Join(".gemini", "antigravity-cli", "plugins", "dfiles", "agents", "explorer.md"),
-		"model: example-antigravity-explorer\n",
-		"  - \"glob\"\n",
-		"  - \"grep_search\"\n",
-		"  - \"read_file\"\n",
-		"  - \"run_shell_command\"\n",
+	assertFileContains(t, out, filepath.Join(".gemini", "antigravity-cli", "plugins", "dfiles", "agents", "worker.md"),
+		"model: gemini-2.5-flash\n",
+		"  - \"replace\"\n",
+		"  - \"write_file\"\n",
 	)
 
-	for _, path := range []string{
-		filepath.Join(".pi", "agent", "skills", "example-skill", "SKILL.md"),
-		filepath.Join(".claude", "skills", "example-skill", "SKILL.md"),
-		filepath.Join(".codex", "skills", "example-skill", "SKILL.md"),
-		filepath.Join(".gemini", "antigravity-cli", "plugins", "dfiles", "skills", "example-skill", "SKILL.md"),
-	} {
-		assertFileContains(t, out, path, "name: example-skill\n")
+	for _, skill := range []string{"plan", "review-dag", "standup"} {
+		for _, path := range []string{
+			filepath.Join(".pi", "agent", "skills", skill, "SKILL.md"),
+			filepath.Join(".claude", "skills", skill, "SKILL.md"),
+			filepath.Join(".codex", "skills", skill, "SKILL.md"),
+			filepath.Join(".gemini", "antigravity-cli", "plugins", "dfiles", "skills", skill, "SKILL.md"),
+		} {
+			assertFileContains(t, out, path, "name: "+skill+"\n")
+		}
 	}
 	for _, path := range []string{
 		filepath.Join(".pi", "agent", "AGENTS.md"),
@@ -64,11 +63,13 @@ func TestCompleteExampleRendersAllTargets(t *testing.T) {
 		filepath.Join(".codex", "AGENTS.md"),
 		filepath.Join(".config", "opencode", "AGENTS.md"),
 	} {
-		assertFileContains(t, out, path, "# Shared instructions\n")
+		assertFileContains(t, out, path, "# Shared agent instructions\n")
 	}
-	assertFileContains(t, out, filepath.Join(".pi", "agent", "extensions", "example", "index.ts"), "export default function exampleExtension()")
-	assertPathAbsent(t, out, filepath.Join(".pi", "agent", "extensions", "example", "extension.toml"))
-	assertFileContains(t, out, filepath.Join(".pi", "agent", "agents", "reviewer.md"), "model: example-lab/orbit-large\n")
+	assertFileContains(t, out, filepath.Join(".pi", "agent", "extensions", "session-name", "index.ts"), "export default function sessionName")
+	assertPathAbsent(t, out, filepath.Join(".pi", "agent", "extensions", "session-name", "extension.toml"))
+	assertFileContains(t, out, filepath.Join(".pi", "agent", "extensions", "zelda-hearts.ts"), "export default function zeldaHearts")
+	assertPathAbsent(t, out, filepath.Join(".pi", "agent", "extensions", "zelda-hearts.toml"))
+	assertFileContains(t, out, filepath.Join(".pi", "agent", "agents", "senior-worker.md"), "model: openai-codex/gpt-5.6-sol\n")
 }
 
 func TestCompleteExampleAppliesEnvironmentOverrides(t *testing.T) {
@@ -81,19 +82,20 @@ func TestCompleteExampleAppliesEnvironmentOverrides(t *testing.T) {
 		absentPath string
 	}{
 		{
-			name:       "balanced home",
-			profile:    "balanced",
+			name:       "openai home",
+			profile:    "openai",
 			scope:      "home",
-			path:       filepath.Join(".pi", "agent", "agents", "explorer.md"),
-			contains:   []string{"model: home-sample/orbit-compact\n", "thinking: low\n"},
-			absentPath: filepath.Join(".pi", "agent", "agents", "reviewer.md"),
+			path:       filepath.Join(".pi", "agent", "agents", "worker.md"),
+			contains:   []string{"model: openai-codex/gpt-5.6-luna\n", "thinking: medium\n"},
+			absentPath: filepath.Join(".pi", "agent", "skills", "review-dag", "SKILL.md"),
 		},
 		{
-			name:     "focused work",
-			profile:  "focused",
-			scope:    "work",
-			path:     filepath.Join(".config", "opencode", "agents", "reviewer.md"),
-			contains: []string{"model: work-sample/compass-review\n"},
+			name:       "mixed work",
+			profile:    "mixed",
+			scope:      "work",
+			path:       filepath.Join(".pi", "agent", "agents", "senior-worker.md"),
+			contains:   []string{"model: anthropic/claude-opus-5\n", "thinking: xhigh\n"},
+			absentPath: filepath.Join(".pi", "agent", "skills", "standup", "SKILL.md"),
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -103,47 +105,35 @@ func TestCompleteExampleAppliesEnvironmentOverrides(t *testing.T) {
 			if test.absentPath != "" {
 				assertPathAbsent(t, out, test.absentPath)
 			}
-			if test.profile == "focused" {
-				assertFileContains(t, out, filepath.Join(".pi", "agent", "agents", "explorer.md"),
-					"model: sample-foundry/compass-small\n",
-					"thinking: low\n",
-				)
-			}
 		})
 	}
 }
 
-func TestCompleteExamplePackageManifestIsInert(t *testing.T) {
+func TestCompleteExamplePackageManifestDemonstratesUniversalAndScopedResources(t *testing.T) {
 	source := completeExampleSource(t)
 	manifest, err := aipackages.Load(aipackages.DefaultPath(source))
 	if err != nil {
 		t.Fatalf("loading complete example package manifest: %v", err)
 	}
 
-	resources := map[string][]string{
-		"pi.packages":         manifest.Pi.Packages,
-		"pi.npmCommand":       manifest.Pi.NPMCommand,
-		"claude.marketplaces": manifest.Claude.Marketplaces,
-		"claude.plugins":      manifest.Claude.Plugins,
-		"codex.plugins":       manifest.Codex.Plugins,
-		"antigravity.plugins": manifest.Antigravity.Plugins,
-	}
-	for name, values := range resources {
-		if len(values) != 0 {
-			t.Errorf("%s contains package actions: %v", name, values)
-		}
-	}
-	if len(manifest.Pi.PackagesByScope) != 0 {
-		t.Errorf("pi.packagesByScope contains package actions: %v", manifest.Pi.PackagesByScope)
-	}
-	if len(manifest.Pi.NPMCommandByScope) != 0 {
-		t.Errorf("pi.npmCommandByScope contains package actions: %v", manifest.Pi.NPMCommandByScope)
-	}
-	for _, scope := range []string{"home", "work"} {
-		resolved := manifest.ForScope(scope)
-		if len(resolved.Pi.Packages) != 0 || len(resolved.Pi.NPMCommand) != 0 {
-			t.Errorf("Pi package actions for scope %q: packages=%v npmCommand=%v", scope, resolved.Pi.Packages, resolved.Pi.NPMCommand)
-		}
+	assertStringsEqual(t, manifest.Pi.Packages, []string{"npm:@tintinweb/pi-subagents", "npm:@tintinweb/pi-tasks"})
+	assertStringsEqual(t, manifest.Pi.NPMCommand, []string{"npm"})
+	assertStringsEqual(t, manifest.Claude.Plugins, []string{"code-simplifier@claude-plugins-official", "pr-review-toolkit@claude-plugins-official"})
+	assertStringsEqual(t, manifest.Codex.Plugins, []string{"github@openai-curated"})
+
+	home := manifest.ForScope("home")
+	assertStringsEqual(t, home.Pi.Packages, []string{"npm:@narumitw/pi-goal", "npm:@tintinweb/pi-subagents", "npm:@tintinweb/pi-tasks"})
+	assertStringsEqual(t, home.Pi.NPMCommand, []string{"npm"})
+
+	work := manifest.ForScope("work")
+	assertStringsEqual(t, work.Pi.Packages, []string{"npm:@tintinweb/pi-subagents", "npm:@tintinweb/pi-tasks"})
+	assertStringsEqual(t, work.Pi.NPMCommand, []string{"pnpm"})
+}
+
+func assertStringsEqual(t *testing.T, got, want []string) {
+	t.Helper()
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("values = %v, want %v", got, want)
 	}
 }
 

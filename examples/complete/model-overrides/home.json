@@ -1,9 +1,13 @@
 {
   "profiles": {
-    "balanced": {
+    "openai": {
       "pi": {
-        "exploration": "home-sample/orbit-compact:low"
+        "code-fast": "openai-codex/gpt-5.6-luna:medium"
+      },
+      "omp": {
+        "code-fast": "openai-codex/gpt-5.6-luna:medium"
       }
     }
-  }
+  },
+  "fixed": {}
 }

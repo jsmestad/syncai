@@ -26,8 +26,8 @@ type goldenTarget struct {
 
 func TestCompleteExampleIsDeterministic(t *testing.T) {
 	source := completeExampleSource(t)
-	first := renderCompleteExample(t, source, "balanced", "")
-	second := renderCompleteExample(t, source, "balanced", "")
+	first := renderCompleteExample(t, source, "openai", "")
+	second := renderCompleteExample(t, source, "openai", "")
 
 	assertTreeInventoriesEqual(t, inventoryTree(t, first), inventoryTree(t, second))
 }
@@ -35,7 +35,7 @@ func TestCompleteExampleIsDeterministic(t *testing.T) {
 func TestCompleteExampleMatchesGoldenTrees(t *testing.T) {
 	source := completeExampleSource(t)
 	repositoryRoot := filepath.Dir(filepath.Dir(source))
-	actualRoot := renderCompleteExample(t, source, "balanced", "")
+	actualRoot := renderCompleteExample(t, source, "openai", "")
 
 	var targets []goldenTarget
 	for _, target := range []struct {

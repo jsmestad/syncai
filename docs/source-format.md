@@ -7,9 +7,10 @@ SyncAI reads one source directory, `ai-source/` by default, and projects its con
 ```text
 ai-source/
   agents/
-    explorer.md
+    worker.md
+    senior-worker.md
   skills/
-    example-skill/
+    plan/
       SKILL.md
   instructions/
     global.md
@@ -20,9 +21,9 @@ ai-source/
     opencode-prefix.md
     antigravity-prefix.md
   extensions/
-    example.ts
-    example.toml
-    directory-extension/
+    zelda-hearts.ts
+    zelda-hearts.toml
+    session-name/
       extension.toml
       index.ts
   model-profiles.json
@@ -134,57 +135,7 @@ Accepted scopes are `home` and `work`. A missing sidecar or field means universa
 
 ## Model profiles
 
-Model roles separate an agent's purpose from each tool's concrete provider identifier. This is the complete neutral catalog from [`examples/complete/model-profiles.json`](../examples/complete/model-profiles.json):
-
-```json
-{
-  "activeProfile": "balanced",
-  "profiles": {
-    "balanced": {
-      "pi": {
-        "exploration": "example-lab/orbit-small:medium",
-        "review": "example-lab/orbit-large:high"
-      },
-      "omp": {
-        "exploration": "example-lab/orbit-small:medium",
-        "review": "example-lab/orbit-large:high"
-      },
-      "opencode": {
-        "exploration": "example-lab/orbit-small",
-        "review": "example-lab/orbit-large"
-      }
-    },
-    "focused": {
-      "pi": {
-        "exploration": "sample-foundry/compass-small:low",
-        "review": "sample-foundry/compass-large:xhigh"
-      },
-      "omp": {
-        "exploration": "sample-foundry/compass-small:low",
-        "review": "sample-foundry/compass-large:xhigh"
-      },
-      "opencode": {
-        "exploration": "sample-foundry/compass-small",
-        "review": "sample-foundry/compass-large"
-      }
-    }
-  },
-  "fixed": {
-    "claude": {
-      "exploration": "example-claude-explorer",
-      "review": "example-claude-reviewer"
-    },
-    "codex": {
-      "exploration": "example-codex-explorer:medium",
-      "review": "example-codex-reviewer:high"
-    },
-    "antigravity": {
-      "exploration": "example-antigravity-explorer",
-      "review": "example-antigravity-reviewer"
-    }
-  }
-}
-```
+Model roles separate an agent's purpose from each tool's concrete provider identifier. [`examples/complete/model-profiles.json`](../examples/complete/model-profiles.json) contains a complete working catalog with `openai`, `claude`, and `mixed` profiles; semantic roles for fast code work, deeper implementation, reasoning, tests, design, product, security, data, and privacy; and fixed mappings for Claude Code, Codex, and Antigravity.
 
 `activeProfile` is required. When `profiles` is nonempty, the active name must exist. `profiles.<name>.<target>.<role>` holds switchable mappings, normally for `pi`, `omp`, and `opencode`. `fixed.<target>.<role>` holds mappings that ignore the active profile, normally for `claude`, `codex`, and `antigravity`.
 
@@ -212,31 +163,39 @@ The selected profile uses this precedence, highest first:
 
 `--scope home` deep-merges `model-overrides/home.json`; `--scope work` deep-merges `model-overrides/work.json`. The environment axis is independent of the selected profile. An overlay replaces only the role mappings it declares and may add profile, target, or fixed mappings.
 
-The complete neutral home overlay is:
+The complete example's home overlay lowers the fast-code thinking level for Pi and Oh My Pi:
 
 ```json
 {
   "profiles": {
-    "balanced": {
+    "openai": {
       "pi": {
-        "exploration": "home-sample/orbit-compact:low"
+        "code-fast": "openai-codex/gpt-5.6-luna:medium"
+      },
+      "omp": {
+        "code-fast": "openai-codex/gpt-5.6-luna:medium"
       }
     }
-  }
+  },
+  "fixed": {}
 }
 ```
 
-The complete neutral work overlay is:
+The work overlay gives the mixed profile's senior role more reasoning effort:
 
 ```json
 {
   "profiles": {
-    "focused": {
-      "opencode": {
-        "review": "work-sample/compass-review"
+    "mixed": {
+      "pi": {
+        "code-high": "anthropic/claude-opus-5:xhigh"
+      },
+      "omp": {
+        "code-high": "anthropic/claude-opus-4-8:xhigh"
       }
     }
-  }
+  },
+  "fixed": {}
 }
 ```
 
