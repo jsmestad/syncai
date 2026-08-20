@@ -29,7 +29,7 @@ git tag -s "$VERSION" -m "syncai $VERSION"
 git push origin "$VERSION"
 ```
 
-The `Release` workflow reruns `make ci`, builds the four archives, signs `checksums.txt` through Cosign and GitHub OIDC, creates a draft GitHub release, attests every archive, and publishes the release only after attestation succeeds.
+The `Release` workflow reruns `make ci`, builds the four archives, uses the matching `CHANGELOG.md` entry as the release notes, signs `checksums.txt` through Cosign and GitHub OIDC, creates a draft GitHub release, attests every archive, and publishes the release only after attestation succeeds. A missing changelog entry stops the release.
 
 Watch the workflow and inspect the published assets:
 
