@@ -1,0 +1,54 @@
+version: 2
+
+project_name: syncai
+
+builds:
+  - id: syncai
+    main: ./cmd/syncai
+    binary: syncai
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -buildid= -X github.com/jsmestad/syncai/internal/cli.version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: release
+    ids:
+      - syncai
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - id: archives
+    artifacts: archive
+
+release:
+  github:
+    owner: jsmestad
+    name: syncai
+  draft: true
+  replace_existing_draft: true
+  make_latest: false
+
+source:
+  enabled: false
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"

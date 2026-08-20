@@ -1,4 +1,4 @@
-.PHONY: fmt-check fmt test vet build check staticcheck vulncheck ci
+.PHONY: fmt-check fmt test vet build check staticcheck vulncheck release-check ci
 
 fmt-check:
 	@files="$$(gofmt -l cmd internal)"; test -z "$$files" || { printf '%s\n' "$$files"; exit 1; }
@@ -24,4 +24,7 @@ staticcheck:
 vulncheck:
 	@govulncheck ./...
 
-ci: check staticcheck vulncheck
+release-check:
+	@goreleaser check
+
+ci: check staticcheck vulncheck release-check

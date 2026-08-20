@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"io"
+	"runtime/debug"
+	"strings"
 
 	"github.com/jsmestad/syncai/internal/renderers"
 	"github.com/jsmestad/syncai/internal/renderers/antigravity"
@@ -13,6 +15,23 @@ import (
 	"github.com/jsmestad/syncai/internal/renderers/pi"
 	"github.com/spf13/cobra"
 )
+
+var version = "dev"
+
+func buildVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	return resolveVersion(version, info, ok)
+}
+
+func resolveVersion(linkerVersion string, info *debug.BuildInfo, ok bool) string {
+	if linkerVersion != "dev" {
+		return strings.TrimPrefix(linkerVersion, "v")
+	}
+	if !ok || info == nil || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return linkerVersion
+	}
+	return strings.TrimPrefix(info.Main.Version, "v")
+}
 
 type Streams struct {
 	In  io.Reader
@@ -43,6 +62,7 @@ func (a *App) Root() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "syncai",
 		Short:         "Render canonical AI configs directly into ~/.pi, ~/.omp, ~/.claude, ~/.codex, ~/.config/opencode, and Antigravity CLI",
+		Version:       buildVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

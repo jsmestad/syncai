@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -27,6 +28,35 @@ func TestRootHelpListsCommands(t *testing.T) {
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("help wrote to stderr: %q", stderr.String())
+	}
+}
+
+func TestRootReportsBuildVersion(t *testing.T) {
+	originalVersion := version
+	version = "1.2.3-test"
+	t.Cleanup(func() { version = originalVersion })
+
+	var output bytes.Buffer
+	app := New(Streams{Out: &output, Err: &output})
+	if err := app.Execute(context.Background(), []string{"--version"}); err != nil {
+		t.Fatalf("executing --version: %v", err)
+	}
+	if got, want := output.String(), "syncai version 1.2.3-test\n"; got != want {
+		t.Fatalf("version output = %q, want %q", got, want)
+	}
+}
+
+func TestResolveVersionUsesModuleVersionWithoutLinkerOverride(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Version: "v1.2.3"}}
+	if got, want := resolveVersion("dev", info, true), "1.2.3"; got != want {
+		t.Fatalf("resolved version = %q, want %q", got, want)
+	}
+}
+
+func TestResolveVersionPrefersLinkerOverride(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Version: "v1.2.3"}}
+	if got, want := resolveVersion("v2.0.0-rc.1", info, true), "2.0.0-rc.1"; got != want {
+		t.Fatalf("resolved version = %q, want %q", got, want)
 	}
 }
 

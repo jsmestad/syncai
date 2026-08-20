@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+jobs:
+  validate:
+    name: Verify tag and run CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify release tag
+        run: |
+          if [[ "$(git cat-file -t "$GITHUB_REF_NAME")" != "tag" ]]; then
+            echo "release tag must be annotated" >&2
+            exit 1
+          fi
+          git -c gpg.ssh.allowedSignersFile=.github/release-allowed-signers verify-tag "$GITHUB_REF_NAME"
+          git merge-base --is-ancestor HEAD origin/main
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: "1.26.x"
+          cache: true
+      - name: Install analyzers
+        env:
+          GOBIN: ${{ runner.temp }}/go-tools
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.0
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          echo "$GOBIN" >> "$GITHUB_PATH"
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: v2.17.1
+          install-only: true
+      - name: Run complete CI checks
+        run: make ci
+
+  release:
+    name: Sign, attest, and publish
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: "1.26.x"
+          cache: true
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          syft-version: v1.51.0
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.3
+      - name: Build draft release
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: v2.17.1
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sign checksum manifest
+        run: cosign sign-blob --yes --output-signature dist/checksums.txt.sig --output-certificate dist/checksums.txt.pem dist/checksums.txt
+      - name: Add signature to draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/checksums.txt.sig dist/checksums.txt.pem --clobber
+      - name: Attest release archives
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*.tar.gz
+      - name: Publish attested release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
