@@ -1,6 +1,6 @@
 # Canonical source format
 
-Syncai reads one source directory, `ai-source/` by default, and projects its contents into tool-specific configuration. Start from [`examples/complete`](../examples/complete) when creating a source tree.
+SyncAI reads one source directory, `ai-source/` by default, and projects its contents into tool-specific configuration. Start from [`examples/complete`](../examples/complete) when creating a source tree.
 
 ## Directory contract
 
@@ -105,7 +105,7 @@ Pi, Claude Code, Codex, OpenCode, and Antigravity currently ignore `fallbackRole
 
 Each immediate subdirectory of `skills/` is one skill and is copied verbatim. Pi, Claude Code, Codex, and Antigravity receive skill directories. Oh My Pi and OpenCode do not.
 
-`SKILL.md` may include `scope: home`, `scope: work`, or CSV `scope: home, work` in leading `---` frontmatter. Missing frontmatter, a missing `SKILL.md`, or a missing `scope` field makes the directory universal. Unknown scopes are rejected. Other skill fields are not interpreted by Syncai.
+`SKILL.md` may include `scope: home`, `scope: work`, or CSV `scope: home, work` in leading `---` frontmatter. Missing frontmatter, a missing `SKILL.md`, or a missing `scope` field makes the directory universal. Unknown scopes are rejected. Other skill fields are not interpreted by SyncAI.
 
 ## Instructions
 
@@ -124,7 +124,7 @@ Extensions are Pi-only runtime code copied verbatim to `.pi/agent/extensions/`.
 - Any immediate subdirectory is a directory extension. Its optional sidecar is `extensions/<name>/extension.toml`.
 - Sidecars are build metadata and are not copied into the installed extension.
 
-The only sidecar field Syncai interprets is `scope`. It may be one string, a comma-separated string, or an array of strings. Unknown TOML keys are ignored:
+The only sidecar field SyncAI interprets is `scope`. It may be one string, a comma-separated string, or an array of strings. Unknown TOML keys are ignored:
 
 ```toml
 scope = ["home", "work"]
@@ -271,7 +271,7 @@ The complete neutral work overlay is:
 | --- | --- |
 | `pi.packages` | Universal Pi package sources. |
 | `pi.packagesByScope` | Map from scope name to additional Pi package sources. The current CLI accepts `home` and `work` scopes. |
-| `pi.npmCommand` | Universal command argv used for Pi npm package reconciliation. An empty list lets Pi or Syncai use its default. |
+| `pi.npmCommand` | Universal command argv used for Pi npm package reconciliation. An empty list lets Pi or SyncAI use its default. |
 | `pi.npmCommandByScope` | Map from scope name to replacement command argv. |
 | `claude.marketplaces` | Claude Code marketplace sources. |
 | `claude.plugins` | Claude Code plugin identifiers. |
@@ -282,4 +282,4 @@ String lists are trimmed, deduplicated, and sorted. Scope-specific Pi packages a
 
 ## Validation errors
 
-Syncai returns a nonzero exit for malformed JSON or TOML, an unreadable required path, missing agent frontmatter delimiters, missing agent `name` or `description`, unsafe agent names, unknown targets, unknown `home` or `work` scopes, a missing active profile, or a requested profile absent from the catalog. Render also fails when a used model role cannot resolve, when a Codex body contains `'''`, when a source directory contains an unsupported file mode, or when an output path escapes its allowed root.
+SyncAI returns a nonzero exit for malformed JSON or TOML, an unreadable required path, missing agent frontmatter delimiters, missing agent `name` or `description`, unsafe agent names, unknown targets, unknown `home` or `work` scopes, a missing active profile, or a requested profile absent from the catalog. Render also fails when a used model role cannot resolve, when a Codex body contains `'''`, when a source directory contains an unsupported file mode, or when an output path escapes its allowed root.

@@ -1,8 +1,8 @@
 # Changelog
 
-All notable user-facing changes to Syncai are documented here.
+All notable user-facing changes to SyncAI are documented here.
 
-## 1.0.0 - 2026-08-20
+## 1.0.1 - 2026-08-20
 
 ### Added
 
@@ -16,4 +16,4 @@ All notable user-facing changes to Syncai are documented here.
 
 - Prebuilt archives support macOS and Linux on AMD64 and ARM64. Windows and other operating systems or architectures are not release targets.
 - Building from source and `go install` support Go 1.25 and Go 1.26.
-- The v1.0.0 command behavior, source format, target coverage, safety rules, and reverse-conversion limits are defined by the public README and reference documentation shipped with this release.
+- The v1.0.1 command behavior, source format, target coverage, safety rules, and reverse-conversion limits are defined by the public README and reference documentation shipped with this release.

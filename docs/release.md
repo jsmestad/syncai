@@ -1,6 +1,6 @@
-# Release Syncai
+# Release SyncAI
 
-Syncai releases are built for macOS and Linux, signed with GitHub's keyless OIDC identity, and accompanied by checksums, SBOMs, and GitHub artifact attestations. The workflow keeps the GitHub release in draft state until its archives have been attested.
+SyncAI releases are built for macOS and Linux, signed with GitHub's keyless OIDC identity, and accompanied by checksums, SBOMs, and GitHub artifact attestations. The workflow keeps the GitHub release in draft state until its archives have been attested.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ Before enabling releases, protect `main` with required pull-request review and b
 Set the next version, then validate the exact clean commit that will receive the tag:
 
 ```bash
-VERSION=v1.0.0
+VERSION=v1.0.1
 git status --short
 make ci
 goreleaser release --snapshot --clean
@@ -43,7 +43,7 @@ gh release view "$VERSION" --repo jsmestad/syncai
 Download the release into a new directory:
 
 ```bash
-VERSION=v1.0.0
+VERSION=v1.0.1
 RELEASE_DIR="$(mktemp -d)"
 gh release download "$VERSION" --repo jsmestad/syncai --dir "$RELEASE_DIR"
 ```
@@ -69,7 +69,7 @@ for archive in "$RELEASE_DIR"/*.tar.gz; do gh attestation verify "$archive" --re
 Inspect an archive before installing it. Each archive must contain only the `syncai` binary, `LICENSE`, and `README.md`:
 
 ```bash
-tar -tzf "$RELEASE_DIR/syncai_1.0.0_darwin_arm64.tar.gz"
+tar -tzf "$RELEASE_DIR/syncai_1.0.1_darwin_arm64.tar.gz"
 ```
 
 ## Remove a bad release
@@ -77,7 +77,7 @@ tar -tzf "$RELEASE_DIR/syncai_1.0.0_darwin_arm64.tar.gz"
 Delete a release that contains a broken or unsafe artifact, but leave its Git tag in place so the version cannot be reused:
 
 ```bash
-VERSION=v1.0.0
+VERSION=v1.0.1
 gh release delete "$VERSION" --repo jsmestad/syncai --yes
 ```
 

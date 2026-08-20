@@ -1,14 +1,101 @@
-# Syncai
+# SyncAI
 
-Write your AI configuration once. Keep every coding agent in sync.
+[![CI](https://github.com/jsmestad/syncai/actions/workflows/ci.yml/badge.svg)](https://github.com/jsmestad/syncai/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/jsmestad/syncai)](https://github.com/jsmestad/syncai/releases/latest)
+[![License](https://img.shields.io/github/license/jsmestad/syncai)](LICENSE)
 
-Coding agents store the same ideas in different files: agent prompts, tool permissions, model choices, reusable skills, shared instructions, extensions, and package manifests. Editing each vendor format by hand duplicates work, loses intent during conversion, and lets installed files drift away from their source.
+**Write your AI configuration once. Keep every coding agent in sync.**
 
-Syncai gives those ideas one canonical source tree. It validates that source, resolves semantic model roles, and renders deterministic configuration for Pi, Oh My Pi, Claude Code, Codex, OpenCode, and Antigravity CLI. Its status, import, and pull workflows make installed edits visible instead of silently overwriting them.
+The better your coding-agent setup gets, the harder it becomes to use anywhere else. Agent prompts, tool permissions, model roles, reusable skills, shared instructions, extensions, and package manifests become part of how you work, but every coding agent stores those ideas in different formats and locations.
+
+Copying configuration between tools creates a fork every time. Improvements land in one agent but not the others, translations lose intent, and local edits drift until no version is clearly authoritative.
+
+SyncAI makes the setup yours. Keep one canonical source tree, validate it once, and render deterministic native configuration for Pi, Oh My Pi, Claude Code, Codex, OpenCode, and Antigravity CLI. When an installed file changes, `status`, `import`, and `pull` bring that change back into the workflow instead of silently overwriting it.
+
+```mermaid
+graph LR
+    Source[Canonical source] --> Pi[Pi]
+    Source --> OMP[Oh My Pi]
+    Source --> Claude[Claude Code]
+    Source --> Codex[Codex]
+    Source --> OpenCode[OpenCode]
+    Source --> Antigravity[Antigravity CLI]
+```
+
+## Why do I need this?
+
+### Improve one agent, keep every target current
+
+You tune the `reviewer` agent while working in Pi. That improvement now lives only in Pi unless you manually translate it into every other agent's format.
+
+```bash
+syncai status --scope home
+syncai pull reviewer --scope home
+```
+
+`status` shows the installed edit. `pull` moves supported changes back into `ai-source/` and immediately rerenders every configured target, so the Claude Code, Codex, OpenCode, Oh My Pi, and Antigravity versions do not become stale copies.
+
+### Keep a Pi extension as source, not machine state
+
+You write `session-notes.ts` directly in Pi. You want it to survive a new laptop, a clean install, or an accidental local deletion. Import it into the canonical tree, then render it like every other managed resource:
+
+```bash
+syncai import
+syncai import session-notes
+syncai render --scope home
+```
+
+The first command lists importable resources without changing anything. The second copies the supported single-file extension into `ai-source/extensions/`. Future renders restore it to Pi wherever that source tree is used. The extension remains Pi-only because its TypeScript runtime is not portable to the other tools.
+
+### Change model providers without rewriting agents
+
+You switched from an Anthropic subscription to OpenAI. Your agent definitions should not care. Define `anthropic` and `openai` once in `model-profiles.json`, keep semantic roles such as `exploration` and `review` in the agent files, then switch the active profile:
+
+```bash
+syncai render --out "$(mktemp -d)" --profile openai --scope home
+syncai use-profile openai --scope home
+```
+
+The first command gives you an isolated preview. The second renders the OpenAI mappings and persists the selection atomically. Profile-driven Pi, Oh My Pi, and OpenCode agents switch together; fixed vendor mappings for Claude Code, Codex, and Antigravity remain unchanged.
+
+### Try another coding agent without rebuilding your setup
+
+You spent months refining your Claude Code agents and skills. Now you want to try Codex or OpenCode without rebuilding that setup. Add the compatible target to the canonical resource once, then preview the native output before installing it:
+
+```bash
+PREVIEW="$(mktemp -d)"
+syncai render --out "$PREVIEW" --scope home
+syncai render --scope home
+```
+
+The preview shows exactly what each tool will receive. The home render writes the supported agents, skills, instructions, and package metadata to their native locations. Target capabilities differ, so SyncAI renders only what each tool can represent instead of pretending every format is interchangeable.
+
+### Keep personal and work configuration in one source tree
+
+Your personal setup uses experimental models and broad tool access. Work requires different agents, model mappings, packages, and instructions. Mark resources as `home`, `work`, or universal, then render the scope for that environment:
+
+```bash
+syncai render --scope home
+syncai render --scope work
+```
+
+Scope-specific resources and model overrides change without duplicating the shared configuration. In practice, run the matching command on each machine or environment rather than maintaining separate source trees that drift apart.
+
+### Put an existing hand-maintained setup under source control
+
+You already have useful agents and skills scattered across Pi, Claude Code, and Codex. Ask SyncAI what it can safely recover before moving anything:
+
+```bash
+syncai import
+syncai import --all
+syncai validate
+```
+
+The first command is an inventory. `--all` imports resources with a supported, unambiguous conversion, and `validate` checks the resulting canonical source. Lossy or tool-specific fields are left for explicit review instead of being silently guessed.
 
 ## Quick proof
 
-Prerequisite: Go 1.25 or 1.26 and a checkout of this repository. This entire example installs and renders beneath one temporary directory. It does not write to your home configuration or Syncai state manifest.
+Prerequisite: Go 1.25 or 1.26 and a checkout of this repository. This entire example installs and renders beneath one temporary directory. It does not write to your home configuration or SyncAI state manifest.
 
 ```bash
 SYNCAI_ROOT="$(mktemp -d)"
@@ -38,7 +125,7 @@ Use `--scope home` or `--scope work` to select scoped agents, skills, extensions
 go install github.com/jsmestad/syncai/cmd/syncai@latest
 ```
 
-Syncai defaults to `ai-source/` and renders to `$HOME`. Start with `syncai validate`, inspect an isolated render with `syncai render --out "$(mktemp -d)"`, then read the [command safety reference](docs/commands.md) before rendering into your home directory.
+SyncAI defaults to `ai-source/` and renders to `$HOME`. Start with `syncai validate`, inspect an isolated render with `syncai render --out "$(mktemp -d)"`, then read the [command safety reference](docs/commands.md) before rendering into your home directory.
 
 ## What one source tree controls
 
@@ -52,7 +139,7 @@ Syncai defaults to `ai-source/` and renders to `$HOME`. Start with `syncai valid
 
 Agents use semantic roles such as `exploration` and `review` instead of embedding one provider model in every prompt. Toggleable profiles select model maps for Pi, Oh My Pi, and OpenCode. Fixed maps hold vendor-specific models for Claude Code, Codex, and Antigravity. `home` and `work` overlays can replace individual role mappings without duplicating whole profiles.
 
-Syncai also supports reversible workflows:
+SyncAI also supports reversible workflows:
 
 - `status` reports tracked edits, missing files, stale outputs, untracked agents, untracked skills, and Pi extension drift.
 - `import` promotes untracked Pi, Claude, and Codex agents, skills, and single-file Pi extensions into canonical source when the conversion is supported.
@@ -61,11 +148,11 @@ Syncai also supports reversible workflows:
 
 Reverse conversion is intentionally bounded. Agent bodies and descriptions round-trip broadly. Tool and model fields round-trip only where the native format preserves enough information. OpenCode permission maps, unsupported frontmatter, ambiguous models, and directory extension imports require a manual source edit. See [Commands](docs/commands.md#import-and-pull-limits).
 
-## Syncai and Vercel Labs Skills
+## SyncAI and Vercel Labs Skills
 
-[Vercel Labs Skills](https://github.com/vercel-labs/skills) focuses on discovering, installing, using, updating, and removing Agent Skills across 77 agents, including “OpenCode, Claude Code, Codex, Cursor, and 73 more,” using symlink or copy installation and the Agent Skills format. Syncai manages a broader canonical configuration and renders each supported tool's native files.
+[Vercel Labs Skills](https://github.com/vercel-labs/skills) focuses on discovering, installing, using, updating, and removing Agent Skills across 77 agents, including “OpenCode, Claude Code, Codex, Cursor, and 73 more,” using symlink or copy installation and the Agent Skills format. SyncAI manages a broader canonical configuration and renders each supported tool's native files.
 
-| Capability | Syncai | Vercel Labs Skills README |
+| Capability | SyncAI | Vercel Labs Skills README |
 | --- | --- | --- |
 | Discover, install, update, and remove Agent Skills | Not a registry workflow | Documented |
 | Agent Skills compatible directories | Rendered to four supported skill roots | Documented across 77 agents |
@@ -79,13 +166,13 @@ Reverse conversion is intentionally bounded. Agent bodies and descriptions round
 
 ## Pi integration
 
-Syncai generates agent definitions compatible with [`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents). Install that Pi extension separately:
+SyncAI generates agent definitions compatible with [`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents). Install that Pi extension separately:
 
 ```bash
 pi install npm:@tintinweb/pi-subagents
 ```
 
-The extension owns subagent execution and its runtime behavior. Syncai does not author, bundle, or replace it. Syncai generates compatible model, thinking, skill, prompt-mode, and tool configuration, but it does not currently render the upstream `allowed_subagents` field required to configure nested subagents. See [Pi integration](docs/pi.md).
+The extension owns subagent execution and its runtime behavior. SyncAI does not author, bundle, or replace it. SyncAI generates compatible model, thinking, skill, prompt-mode, and tool configuration, but it does not currently render the upstream `allowed_subagents` field required to configure nested subagents. See [Pi integration](docs/pi.md).
 
 ## Reference
 
@@ -95,4 +182,4 @@ The extension owns subagent execution and its runtime behavior. Syncai does not 
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
-Syncai is licensed under the [Apache License 2.0](LICENSE).
+SyncAI is licensed under the [Apache License 2.0](LICENSE).

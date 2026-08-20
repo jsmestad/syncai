@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions should keep Syncai's canonical source neutral, renderer output deterministic, and filesystem changes inside explicit roots.
+Contributions should keep SyncAI's canonical source neutral, renderer output deterministic, and filesystem changes inside explicit roots.
 
 ## Prerequisites
 
