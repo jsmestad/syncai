@@ -44,19 +44,23 @@ func runImport(ctx context.Context, outWriter io.Writer, options importOptions, 
 	if err != nil {
 		return err
 	}
-	candidates, err := importer.Scan(home, options.source)
+	sourceRoot, err := filepath.Abs(options.source)
+	if err != nil {
+		return fmt.Errorf("resolving source root %s: %w", options.source, err)
+	}
+	candidates, err := importer.Scan(home, sourceRoot)
 	if err != nil {
 		return err
 	}
-	extensionCandidates, err := importer.ScanExtensions(home, options.source)
+	extensionCandidates, err := importer.ScanExtensions(home, sourceRoot)
 	if err != nil {
 		return err
 	}
-	extensionDirectories, err := importer.ScanExtensionDirectories(home, options.source)
+	extensionDirectories, err := importer.ScanExtensionDirectories(home, sourceRoot)
 	if err != nil {
 		return err
 	}
-	skillCandidates, err := importer.ScanSkills(home, options.source)
+	skillCandidates, err := importer.ScanSkills(home, sourceRoot)
 	if err != nil {
 		return err
 	}
@@ -76,7 +80,7 @@ func runImport(ctx context.Context, outWriter io.Writer, options importOptions, 
 		return nil
 	}
 
-	profile, err := profiles.LoadWithProfile(filepath.Join(options.source, "model-profiles.json"), "")
+	profile, err := profiles.LoadWithProfile(filepath.Join(sourceRoot, "model-profiles.json"), "")
 	if err != nil {
 		return err
 	}
@@ -95,7 +99,7 @@ func runImport(ctx context.Context, outWriter io.Writer, options importOptions, 
 			fmt.Fprintf(outWriter, "skip: %s (from %s) — manual port required\n", candidate.Name, candidate.Tool)
 			continue
 		}
-		if err := importer.Port(candidate, profile); err != nil {
+		if err := importer.Port(sourceRoot, candidate, profile); err != nil {
 			return fmt.Errorf("porting %s: %w", candidate.Name, err)
 		}
 		fmt.Fprintf(outWriter, "imported agent: %s ← %s\n  → %s\n", candidate.Name, candidate.InputPath, candidate.SourcePath)
@@ -104,7 +108,7 @@ func runImport(ctx context.Context, outWriter io.Writer, options importOptions, 
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := importer.PortExtension(candidate); err != nil {
+		if err := importer.PortExtension(sourceRoot, candidate); err != nil {
 			return fmt.Errorf("porting extension %s: %w", candidate.Name, err)
 		}
 		fmt.Fprintf(outWriter, "imported extension: %s ← %s\n  → %s\n", candidate.Name, candidate.InputPath, candidate.SourcePath)
@@ -114,7 +118,7 @@ func runImport(ctx context.Context, outWriter io.Writer, options importOptions, 
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := importer.PortSkill(candidate); err != nil {
+		if err := importer.PortSkill(sourceRoot, candidate); err != nil {
 			return fmt.Errorf("porting skill %s: %w", candidate.Name, err)
 		}
 		fmt.Fprintf(outWriter, "imported skill: %s ← %s [from %s]\n  → %s\n", candidate.Name, candidate.InputPath, candidate.Tool, candidate.SourcePath)

@@ -140,3 +140,53 @@ func TestRenderSkipsAgentsWithoutOMPTarget(t *testing.T) {
 		t.Fatalf("written = %v, want none", written)
 	}
 }
+
+func TestRenderRejectsSymlinkedOutputAncestor(t *testing.T) {
+	outRoot := t.TempDir()
+	external := t.TempDir()
+	externalFile := filepath.Join(external, "agent", "agents", "archie.md")
+	if err := os.MkdirAll(filepath.Dir(externalFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(externalFile, []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(outRoot, ".omp")); err != nil {
+		t.Fatal(err)
+	}
+	agent := &schema.Agent{Name: "archie", Description: "Advisor", Targets: []string{string(schema.TargetOMP)}, Body: "body\n"}
+
+	if _, err := New().Render(renderers.Inputs{Agents: []*schema.Agent{agent}}, outRoot); err == nil {
+		t.Fatal("Render succeeded through a symlinked output ancestor")
+	}
+	got, err := os.ReadFile(externalFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "outside" {
+		t.Fatalf("external file changed to %q", got)
+	}
+}
+
+func TestRenderContainsConstructedAgentNameWithinAgentsDirectory(t *testing.T) {
+	outRoot := t.TempDir()
+	sentinel := filepath.Join(outRoot, ".omp", "agent", "sentinel.md")
+	if err := os.MkdirAll(filepath.Dir(sentinel), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sentinel, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	agent := &schema.Agent{Name: "../sentinel", Description: "Advisor", Targets: []string{string(schema.TargetOMP)}, Body: "replacement\n"}
+
+	if _, err := New().Render(renderers.Inputs{Agents: []*schema.Agent{agent}}, outRoot); err == nil {
+		t.Fatal("Render accepted a constructed traversal agent name")
+	}
+	got, err := os.ReadFile(sentinel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "keep" {
+		t.Fatalf("sentinel changed to %q", got)
+	}
+}

@@ -63,7 +63,7 @@ func TestPruneOnlyDeletesArgumentedPaths(t *testing.T) {
 	mustWrite(t, doomed, "x")
 	mustWrite(t, survives, "y")
 
-	if errs := Prune([]string{doomed}, nil); len(errs) > 0 {
+	if errs := Prune(d, []string{doomed}, nil); len(errs) > 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
 	if _, err := os.Stat(doomed); !os.IsNotExist(err) {
@@ -78,8 +78,48 @@ func TestPruneOnlyDeletesArgumentedPaths(t *testing.T) {
 func TestPruneNoopForMissing(t *testing.T) {
 	d := t.TempDir()
 	missing := filepath.Join(d, "ghost.md")
-	if errs := Prune([]string{missing}, nil); len(errs) > 0 {
+	if errs := Prune(d, []string{missing}, nil); len(errs) > 0 {
 		t.Errorf("Prune of missing path should not error: %v", errs)
+	}
+}
+
+func TestPruneRejectsPathOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	external := filepath.Join(t.TempDir(), "keep.md")
+	mustWrite(t, external, "outside")
+
+	errs := Prune(root, []string{external}, nil)
+	if len(errs) != 1 {
+		t.Fatalf("Prune errors = %v, want one containment error", errs)
+	}
+	got, err := os.ReadFile(external)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "outside" {
+		t.Fatalf("external file changed to %q", got)
+	}
+}
+
+func TestPruneRejectsPathsThatNormalizeToRoot(t *testing.T) {
+	for _, candidate := range []string{".", "", filepath.Join("child", "..")} {
+		t.Run(candidate, func(t *testing.T) {
+			root := t.TempDir()
+			sentinel := filepath.Join(root, "sentinel")
+			mustWrite(t, sentinel, "keep")
+
+			errs := Prune(root, nil, []string{candidate})
+			if len(errs) != 1 {
+				t.Fatalf("Prune errors = %v, want one root rejection", errs)
+			}
+			got, err := os.ReadFile(sentinel)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != "keep" {
+				t.Fatalf("root sentinel changed to %q", got)
+			}
+		})
 	}
 }
 

@@ -186,7 +186,7 @@ func TestPortExtension_SingleFile_CopiesVerbatim(t *testing.T) {
 	target := filepath.Join(out, "extensions", "mine.ts")
 
 	c := ExtensionCandidate{Name: "mine", InputPath: srcFile, SourcePath: target}
-	if err := PortExtension(c); err != nil {
+	if err := PortExtension(out, c); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(target)
@@ -198,12 +198,56 @@ func TestPortExtension_SingleFile_CopiesVerbatim(t *testing.T) {
 	}
 }
 
+func TestPortExtensionRejectsSymlinkedSourceAncestor(t *testing.T) {
+	inputRoot := t.TempDir()
+	input := makeFile(t, inputRoot, "mine.ts", "installed")
+	sourceRoot := t.TempDir()
+	external := t.TempDir()
+	externalFile := makeFile(t, external, "mine.ts", "outside")
+	if err := os.Symlink(external, filepath.Join(sourceRoot, "extensions")); err != nil {
+		t.Fatal(err)
+	}
+	candidate := ExtensionCandidate{Name: "mine", InputPath: input, SourcePath: filepath.Join(sourceRoot, "extensions", "mine.ts")}
+
+	if err := PortExtension(sourceRoot, candidate); err == nil {
+		t.Fatal("PortExtension succeeded through a symlinked source ancestor")
+	}
+	got, err := os.ReadFile(externalFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "outside" {
+		t.Fatalf("external file changed to %q", got)
+	}
+}
+
+func TestPortExtensionReplacesFinalSourceSymlink(t *testing.T) {
+	inputRoot := t.TempDir()
+	input := makeFile(t, inputRoot, "mine.ts", "installed bytes")
+	sourceRoot := t.TempDir()
+	target := makeFile(t, sourceRoot, "extensions/other.ts", "other canonical bytes")
+	intended := filepath.Join(sourceRoot, "extensions", "mine.ts")
+	if err := os.Chmod(target, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("other.ts", intended); err != nil {
+		t.Fatal(err)
+	}
+	candidate := ExtensionCandidate{Name: "mine", InputPath: input, SourcePath: intended}
+
+	if err := PortExtension(sourceRoot, candidate); err != nil {
+		t.Fatalf("PortExtension: %v", err)
+	}
+	assertFileUnchanged(t, target, "other canonical bytes", 0o600)
+	assertRegularFile(t, intended, "installed bytes", 0o644)
+}
+
 func TestPortExtension_Directory_RejectedWithError(t *testing.T) {
 	// Belt-and-suspenders: even if a caller constructs an
 	// ExtensionCandidate{IsDirectory:true} by hand (ScanExtensions never
 	// produces one), PortExtension should refuse rather than vendor a tree.
 	c := ExtensionCandidate{Name: "x", InputPath: "/tmp/x", SourcePath: "/tmp/y", IsDirectory: true}
-	if err := PortExtension(c); err == nil {
+	if err := PortExtension(t.TempDir(), c); err == nil {
 		t.Errorf("expected error for directory candidate, got nil")
 	}
 }

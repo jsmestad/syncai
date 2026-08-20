@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jsmestad/syncai/internal/load"
 	"github.com/jsmestad/syncai/internal/profiles"
 	"github.com/jsmestad/syncai/internal/pull"
 	"github.com/jsmestad/syncai/internal/schema"
@@ -92,7 +93,7 @@ func Scan(homeDir, sourceRoot string) ([]Candidate, error) {
 // the reverse mapping is unambiguous), and writes it to SourcePath.
 // Supports Pi, Claude, and Codex; other tools' candidates get an error
 // directing the user to port manually.
-func Port(c Candidate, p *profiles.File) error {
+func Port(sourceRoot string, c Candidate, p *profiles.File) error {
 	switch c.Tool {
 	case "pi", "claude", "codex":
 	default:
@@ -128,10 +129,7 @@ func Port(c Candidate, p *profiles.File) error {
 			return err
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(c.SourcePath), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(c.SourcePath, out, 0o644)
+	return load.WriteFileReplacing(sourceRoot, c.SourcePath, out, 0o644)
 }
 
 // piToSource synthesises a source-format markdown file from a Pi-installed

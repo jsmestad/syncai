@@ -7,7 +7,6 @@ package omp
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -29,7 +28,7 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 	if in.ProjectMode {
 		dir = filepath.Join(outRoot, ".omp", "agents")
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := load.MkdirAll(outRoot, dir, 0o755); err != nil {
 		return nil, err
 	}
 
@@ -43,7 +42,7 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 			return nil, err
 		}
 		path := filepath.Join(dir, agent.Name+".md")
-		if err := load.WriteFileReplacing(path, body, 0o644); err != nil {
+		if err := load.WriteFileReplacing(dir, path, body, 0o644); err != nil {
 			return nil, fmt.Errorf("writing %s: %w", path, err)
 		}
 		written = append(written, path)

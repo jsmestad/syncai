@@ -26,7 +26,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -53,19 +52,19 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 	}
 
 	var written []string
-	w, err := writeAgents(layout.agentsDir, in)
+	w, err := writeAgents(outRoot, layout.agentsDir, in)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, w...)
 
-	w, err = writeSkills(layout.skillsDir, in.SkillDirs)
+	w, err = writeSkills(outRoot, layout.skillsDir, in.SkillDirs)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, w...)
 
-	w, err = writeExtensions(layout.extensionsDir, in.Extensions)
+	w, err = writeExtensions(outRoot, layout.extensionsDir, in.Extensions)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +76,7 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 			body += "\n\n---\n\n" + prefix
 		}
 		body += "\n"
-		if err := load.WriteFileReplacing(layout.instructionsPath, []byte(body), 0o644); err != nil {
+		if err := load.WriteFileReplacing(outRoot, layout.instructionsPath, []byte(body), 0o644); err != nil {
 			return nil, err
 		}
 		written = append(written, layout.instructionsPath)
@@ -88,7 +87,7 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("encoding resolved model profiles: %w", err)
 		}
-		if err := load.WriteFileReplacing(layout.profilesPath, append(raw, '\n'), 0o644); err != nil {
+		if err := load.WriteFileReplacing(outRoot, layout.profilesPath, append(raw, '\n'), 0o644); err != nil {
 			return nil, err
 		}
 		written = append(written, layout.profilesPath)
@@ -126,8 +125,8 @@ func projectLayout(outRoot string) piLayout {
 	}
 }
 
-func writeAgents(dir string, in renderers.Inputs) ([]string, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+func writeAgents(outRoot, dir string, in renderers.Inputs) ([]string, error) {
+	if err := load.MkdirAll(outRoot, dir, 0o755); err != nil {
 		return nil, err
 	}
 	if err := removeLegacyChainFiles(dir); err != nil {
@@ -143,7 +142,7 @@ func writeAgents(dir string, in renderers.Inputs) ([]string, error) {
 			return nil, err
 		}
 		path := filepath.Join(dir, a.Name+".md")
-		if err := load.WriteFileReplacing(path, body, 0o644); err != nil {
+		if err := load.WriteFileReplacing(dir, path, body, 0o644); err != nil {
 			return nil, fmt.Errorf("writing %s: %w", path, err)
 		}
 		written = append(written, path)
@@ -164,7 +163,7 @@ func removeLegacyChainFiles(dir string) error {
 	return nil
 }
 
-func writeSkills(dst string, srcDirs []string) ([]string, error) {
+func writeSkills(outRoot, dst string, srcDirs []string) ([]string, error) {
 	if len(srcDirs) == 0 {
 		return nil, nil
 	}
@@ -172,7 +171,7 @@ func writeSkills(dst string, srcDirs []string) ([]string, error) {
 	for _, src := range srcDirs {
 		name := filepath.Base(src)
 		target := filepath.Join(dst, name)
-		if err := load.CopyDir(src, target); err != nil {
+		if err := load.CopyDir(outRoot, src, target); err != nil {
 			return nil, fmt.Errorf("copying skill %s: %w", name, err)
 		}
 		written = append(written, target)
@@ -184,18 +183,18 @@ func writeSkills(dst string, srcDirs []string) ([]string, error) {
 // extensions land at <dst>/<name>.ts; directory extensions at <dst>/<name>/.
 // The TOML sidecars from the source tree are intentionally not copied —
 // they're build-time metadata, not runtime config Pi cares about.
-func writeExtensions(dst string, exts []*schema.Extension) ([]string, error) {
+func writeExtensions(outRoot, dst string, exts []*schema.Extension) ([]string, error) {
 	if len(exts) == 0 {
 		return nil, nil
 	}
-	if err := os.MkdirAll(dst, 0o755); err != nil {
+	if err := load.MkdirAll(outRoot, dst, 0o755); err != nil {
 		return nil, err
 	}
 	var written []string
 	for _, e := range exts {
 		target := filepath.Join(dst, e.InstallName())
 		if e.IsDirectory {
-			if err := load.CopyDir(e.SourcePath, target); err != nil {
+			if err := load.CopyDir(outRoot, e.SourcePath, target); err != nil {
 				return nil, fmt.Errorf("copying extension %s: %w", e.Name, err)
 			}
 			// CopyDir is a recursive copy and will pull in the sidecar.
@@ -208,7 +207,7 @@ func writeExtensions(dst string, exts []*schema.Extension) ([]string, error) {
 			written = append(written, target)
 			continue
 		}
-		if err := load.CopyFileReplacing(e.SourcePath, target); err != nil {
+		if err := load.CopyFileReplacing(outRoot, e.SourcePath, target); err != nil {
 			return nil, fmt.Errorf("copying extension %s: %w", e.Name, err)
 		}
 		written = append(written, target)
@@ -266,22 +265,4 @@ func splitModelThinking(value string) (model, thinking string) {
 	default:
 		return value, ""
 	}
-}
-
-func copyFile(src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
 }

@@ -7,11 +7,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/jsmestad/syncai/internal/check"
 	"github.com/jsmestad/syncai/internal/load"
 	"github.com/jsmestad/syncai/internal/manifest"
+	"github.com/jsmestad/syncai/internal/pathguard"
 	"github.com/jsmestad/syncai/internal/profiles"
 	"github.com/jsmestad/syncai/internal/renderers"
 	"github.com/jsmestad/syncai/internal/schema"
@@ -155,7 +155,7 @@ func runRender(ctx context.Context, available []renderers.Renderer, outWriter, e
 		for _, path := range dirsToRemove {
 			fmt.Fprintf(outWriter, "  - %s/\n", path)
 		}
-		for _, pruneErr := range manifest.Prune(filesToRemove, dirsToRemove) {
+		for _, pruneErr := range manifest.Prune(out, filesToRemove, dirsToRemove) {
 			fmt.Fprintf(errWriter, "warn: %v\n", pruneErr)
 		}
 	}
@@ -187,26 +187,27 @@ func unreconciledDrift(ctx context.Context, in renderers.Inputs, out string, dri
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		relative, err := filepath.Rel(out, path)
+		sourcePath, err := pathguard.Resolve(out, path)
 		if err != nil {
 			return nil, err
 		}
-		if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) || filepath.IsAbs(relative) {
-			return nil, fmt.Errorf("drifted path %q is outside render root %q", path, out)
-		}
-		data, err := os.ReadFile(path)
+		relative, err := filepath.Rel(out, sourcePath)
 		if err != nil {
 			return nil, err
 		}
-		info, err := os.Stat(path)
+		data, err := os.ReadFile(sourcePath)
 		if err != nil {
 			return nil, err
 		}
-		target := filepath.Join(shadow, relative)
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		info, err := os.Stat(sourcePath)
+		if err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(target, data, info.Mode().Perm()); err != nil {
+		target, err := pathguard.Resolve(shadow, relative)
+		if err != nil {
+			return nil, err
+		}
+		if err := load.WriteFileReplacing(shadow, target, data, info.Mode().Perm()); err != nil {
 			return nil, err
 		}
 	}
@@ -230,7 +231,11 @@ func unreconciledDrift(ctx context.Context, in renderers.Inputs, out string, dri
 		if err != nil {
 			return nil, err
 		}
-		expected, err := os.ReadFile(filepath.Join(shadow, relative))
+		expectedPath, err := pathguard.Resolve(shadow, relative)
+		if err != nil {
+			return nil, err
+		}
+		expected, err := os.ReadFile(expectedPath)
 		if err != nil {
 			return nil, fmt.Errorf("reading expected render for %s: %w", path, err)
 		}
@@ -281,10 +286,7 @@ func seedCodexInstructions(out, shadow string) error {
 		return fmt.Errorf("stating %s: %w", source, err)
 	}
 	target := filepath.Join(shadow, ".codex", "AGENTS.md")
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return fmt.Errorf("creating shadow Codex directory: %w", err)
-	}
-	if err := os.WriteFile(target, data, info.Mode().Perm()); err != nil {
+	if err := load.WriteFileReplacing(shadow, target, data, info.Mode().Perm()); err != nil {
 		return fmt.Errorf("writing %s: %w", target, err)
 	}
 	return nil

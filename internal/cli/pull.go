@@ -125,7 +125,7 @@ func runPull(ctx context.Context, available []renderers.Renderer, outWriter, err
 		if (!options.all && !wanted[name]) || pulledNames[name] {
 			continue
 		}
-		sourcePath := filepath.Join(options.source, "agents", name+".md")
+		sourcePath := filepath.Join(source, "agents", name+".md")
 		if _, err := os.Stat(sourcePath); err != nil {
 			if os.IsNotExist(err) {
 				fmt.Fprintf(errWriter, "warn: drifted %s has no matching source at %s, skipping\n", path, sourcePath)
@@ -148,7 +148,7 @@ func runPull(ctx context.Context, available []renderers.Renderer, outWriter, err
 		if !plan.HasChanges() {
 			continue
 		}
-		if err := plan.Apply(); err != nil {
+		if err := plan.Apply(source); err != nil {
 			return fmt.Errorf("applying pull for %s: %w", path, err)
 		}
 		printAppliedPull(outWriter, plan)
@@ -164,7 +164,7 @@ func runPull(ctx context.Context, available []renderers.Renderer, outWriter, err
 		if !options.all && !wanted[plan.Name] {
 			continue
 		}
-		if err := plan.Apply(); err != nil {
+		if err := plan.Apply(source); err != nil {
 			return fmt.Errorf("applying extension pull for %s: %w", plan.Name, err)
 		}
 		fmt.Fprintf(outWriter, "pulled extension: %s ← %s (%s)\n", plan.SourcePath, plan.InstalledPath, pull.SummariseChanges(plan.Changes))

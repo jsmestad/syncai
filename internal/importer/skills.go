@@ -95,8 +95,8 @@ func ScanSkills(homeDir, sourceRoot string) ([]SkillCandidate, error) {
 // PortSkill copies the installed skill directory verbatim into
 // ai-source/skills/<name>/. A plain copy is already the generic, tool-
 // agnostic form — skills have no per-target rewrites the way agents do.
-func PortSkill(c SkillCandidate) error {
-	return load.CopyDir(c.InputPath, c.SourcePath)
+func PortSkill(sourceRoot string, c SkillCandidate) error {
+	return load.CopyDir(sourceRoot, c.InputPath, c.SourcePath)
 }
 
 // dirNameSet returns the basenames of every subdirectory in dir.

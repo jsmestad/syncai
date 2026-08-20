@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/jsmestad/syncai/internal/pathguard"
 )
 
 // Version 2 introduces FileEntry with hashes. Older manifests (Version 1)
@@ -188,9 +190,14 @@ func Diff(old, next *Manifest) (filesToRemove, dirsToRemove []string) {
 
 // Prune removes files and directories that are no longer rendered. Best-
 // effort: it logs (returns) errors per path but doesn't stop on them.
-func Prune(filesToRemove, dirsToRemove []string) []error {
+func Prune(root string, filesToRemove, dirsToRemove []string) []error {
 	var errs []error
-	for _, f := range filesToRemove {
+	for _, candidate := range filesToRemove {
+		f, err := resolveRemoval(root, candidate)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
 		if _, err := os.Lstat(f); os.IsNotExist(err) {
 			continue
 		}
@@ -198,7 +205,12 @@ func Prune(filesToRemove, dirsToRemove []string) []error {
 			errs = append(errs, fmt.Errorf("removing %s: %w", f, err))
 		}
 	}
-	for _, d := range dirsToRemove {
+	for _, candidate := range dirsToRemove {
+		d, err := resolveRemoval(root, candidate)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
 		if _, err := os.Lstat(d); os.IsNotExist(err) {
 			continue
 		}
@@ -207,6 +219,23 @@ func Prune(filesToRemove, dirsToRemove []string) []error {
 		}
 	}
 	return errs
+}
+
+func resolveRemoval(root, candidate string) (string, error) {
+	cleanCandidate := filepath.Clean(candidate)
+	parent, err := pathguard.Resolve(root, filepath.Dir(cleanCandidate))
+	if err != nil {
+		return "", fmt.Errorf("resolving removal candidate %q within root %q: %w", candidate, root, err)
+	}
+	path := filepath.Join(parent, filepath.Base(cleanCandidate))
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("resolving removal root %q: %w", root, err)
+	}
+	if filepath.Clean(path) == filepath.Clean(absRoot) {
+		return "", fmt.Errorf("removal candidate %q must be below root %q", candidate, root)
+	}
+	return path, nil
 }
 
 func stringSet(in []string) map[string]bool {

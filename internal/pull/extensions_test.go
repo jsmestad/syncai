@@ -48,7 +48,7 @@ func TestPlanExtension_SingleFile_BodyDiff(t *testing.T) {
 		t.Errorf("expected 1 edited change, got %+v", plan.Changes)
 	}
 
-	if err := plan.Apply(); err != nil {
+	if err := plan.Apply(filepath.Join(src, "src")); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := os.ReadFile(source)
@@ -120,7 +120,7 @@ func TestPlanExtension_Apply_DirectoryChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := plan.Apply(); err != nil {
+	if err := plan.Apply(filepath.Join(src, "source")); err != nil {
 		t.Fatal(err)
 	}
 	// Edited file: source updated.
@@ -145,6 +145,64 @@ func TestPlanExtension_Apply_DirectoryChanges(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(sourceRoot, "will-be-removed.ts")); err != nil {
 		t.Errorf("will-be-removed.ts must NOT be deleted by Apply, got err=%v", err)
 	}
+}
+
+func TestExtensionApplyRejectsSymlinkedSourceAncestor(t *testing.T) {
+	root := t.TempDir()
+	installed := writeRel(t, root, "installed/ext/index.ts", "installed")
+	external := t.TempDir()
+	externalFile := writeRel(t, external, "ext/index.ts", "outside")
+	sourceRoot := filepath.Join(root, "source")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(sourceRoot, "extensions")); err != nil {
+		t.Fatal(err)
+	}
+	plan := ExtPlan{
+		Name:          "ext",
+		IsDirectory:   true,
+		InstalledPath: filepath.Dir(installed),
+		SourcePath:    filepath.Join(sourceRoot, "extensions", "ext"),
+		Changes:       []ExtFileChange{{RelPath: "index.ts", Kind: "edited"}},
+	}
+
+	if err := plan.Apply(sourceRoot); err == nil {
+		t.Fatal("Apply succeeded through a symlinked source ancestor")
+	}
+	got, err := os.ReadFile(externalFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "outside" {
+		t.Fatalf("external file changed to %q", got)
+	}
+}
+
+func TestExtensionApplyReplacesFinalSourceSymlink(t *testing.T) {
+	root := t.TempDir()
+	installed := writeRel(t, root, "installed/ext.ts", "installed bytes")
+	sourceRoot := filepath.Join(root, "source")
+	target := writeRel(t, sourceRoot, "extensions/other.ts", "other canonical bytes")
+	intended := filepath.Join(sourceRoot, "extensions", "ext.ts")
+	if err := os.Chmod(target, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("other.ts", intended); err != nil {
+		t.Fatal(err)
+	}
+	plan := ExtPlan{
+		Name:          "ext",
+		InstalledPath: installed,
+		SourcePath:    intended,
+		Changes:       []ExtFileChange{{Kind: "edited"}},
+	}
+
+	if err := plan.Apply(sourceRoot); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	assertFileUnchanged(t, target, "other canonical bytes", 0o600)
+	assertRegularFile(t, intended, "installed bytes", 0o644)
 }
 
 func TestSummariseChanges(t *testing.T) {

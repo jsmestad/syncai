@@ -10,7 +10,7 @@ import (
 func TestWriteFileReplacingNew(t *testing.T) {
 	d := t.TempDir()
 	path := filepath.Join(d, "new.md")
-	if err := WriteFileReplacing(path, []byte("hello"), 0o644); err != nil {
+	if err := WriteFileReplacing(d, path, []byte("hello"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	got, err := os.ReadFile(path)
@@ -29,12 +29,22 @@ func TestWriteFileReplacingExisting(t *testing.T) {
 	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteFileReplacing(path, []byte("new"), 0o644); err != nil {
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFileReplacing(d, path, []byte("new"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	got, _ := os.ReadFile(path)
 	if string(got) != "new" {
 		t.Errorf("content not overwritten: %q", got)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("mode = %o, want 600", info.Mode().Perm())
 	}
 }
 
@@ -47,7 +57,7 @@ func TestWriteFileReplacingBrokenSymlink(t *testing.T) {
 	if err := os.Symlink(filepath.Join(d, "does-not-exist"), path); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteFileReplacing(path, []byte("real content"), 0o644); err != nil {
+	if err := WriteFileReplacing(d, path, []byte("real content"), 0o644); err != nil {
 		t.Fatalf("write through broken symlink: %v", err)
 	}
 	info, err := os.Lstat(path)
@@ -75,7 +85,7 @@ func TestWriteFileReplacingValidSymlinkPreservesTarget(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteFileReplacing(link, []byte("link replacement"), 0o644); err != nil {
+	if err := WriteFileReplacing(d, link, []byte("link replacement"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	// The link path should now be a regular file.
@@ -94,7 +104,7 @@ func TestWriteFileReplacingValidSymlinkPreservesTarget(t *testing.T) {
 func TestWriteFileReplacingCreatesParents(t *testing.T) {
 	d := t.TempDir()
 	deep := filepath.Join(d, "a", "b", "c", "deep.md")
-	if err := WriteFileReplacing(deep, []byte("x"), 0o644); err != nil {
+	if err := WriteFileReplacing(d, deep, []byte("x"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	if _, err := os.Stat(deep); err != nil {
@@ -114,11 +124,110 @@ func TestCopyFileReplacing(t *testing.T) {
 	if err := os.WriteFile(dst, []byte("old dst"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := CopyFileReplacing(src, dst); err != nil {
+	if err := CopyFileReplacing(d, src, dst); err != nil {
 		t.Fatalf("copy: %v", err)
 	}
 	got, _ := os.ReadFile(dst)
 	if string(got) != "source content" {
 		t.Errorf("dst not overwritten with src: %q", got)
+	}
+}
+
+func TestCopyDirRejectsSymlinkedDestinationAncestor(t *testing.T) {
+	root := t.TempDir()
+	source := t.TempDir()
+	external := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("source"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	externalFile := filepath.Join(external, "example", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(externalFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(externalFile, []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(root, "skills")); err != nil {
+		t.Fatal(err)
+	}
+
+	err := CopyDir(root, source, filepath.Join(root, "skills", "example"))
+	if err == nil {
+		t.Fatal("CopyDir succeeded through a symlinked destination ancestor")
+	}
+	got, readErr := os.ReadFile(externalFile)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != "outside" {
+		t.Fatalf("external file changed to %q", got)
+	}
+}
+
+func TestCopyDirRejectsDestinationThatNormalizesToRoot(t *testing.T) {
+	root := t.TempDir()
+	source := t.TempDir()
+	sentinel := filepath.Join(root, "sentinel")
+	if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("source"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sentinel, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := CopyDir(root, source, filepath.Join("child", "..")); err == nil {
+		t.Fatal("CopyDir accepted a destination that normalizes to the root")
+	}
+	got, err := os.ReadFile(sentinel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "keep" {
+		t.Fatalf("root sentinel changed to %q", got)
+	}
+}
+
+func TestCopyDirRejectsSourceSymlink(t *testing.T) {
+	root := t.TempDir()
+	source := t.TempDir()
+	external := t.TempDir()
+	privateFile := filepath.Join(external, "private.txt")
+	if err := os.WriteFile(privateFile, []byte("private bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(source, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(privateFile, filepath.Join(source, "nested", "private.txt")); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(root, "skills", "example")
+
+	if err := CopyDir(root, source, destination); err == nil {
+		t.Fatal("CopyDir accepted a source symlink")
+	}
+	if _, err := os.ReadFile(filepath.Join(destination, "nested", "private.txt")); !os.IsNotExist(err) {
+		t.Fatalf("private bytes reached destination: %v", err)
+	}
+}
+
+func TestCopyDirPreservesFileMode(t *testing.T) {
+	root := t.TempDir()
+	source := t.TempDir()
+	sourceFile := filepath.Join(source, "run.sh")
+	if err := os.WriteFile(sourceFile, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(root, "skills", "example")
+
+	if err := CopyDir(root, source, destination); err != nil {
+		t.Fatalf("CopyDir: %v", err)
+	}
+	info, err := os.Stat(filepath.Join(destination, "run.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o755 {
+		t.Fatalf("copied mode = %o, want 755", got)
 	}
 }

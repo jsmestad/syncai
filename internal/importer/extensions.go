@@ -2,11 +2,12 @@ package importer
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/jsmestad/syncai/internal/load"
 )
 
 // ExtensionCandidate is one installed Pi extension that has no equivalent
@@ -126,14 +127,11 @@ func ScanExtensions(homeDir, sourceRoot string) ([]ExtensionCandidate, error) {
 //
 // Directory candidates are not produced by ScanExtensions, so this only
 // handles the single-file case.
-func PortExtension(c ExtensionCandidate) error {
+func PortExtension(sourceRoot string, c ExtensionCandidate) error {
 	if c.IsDirectory {
 		return fmt.Errorf("directory extensions cannot be auto-imported; copy by hand and add a sidecar")
 	}
-	if err := os.MkdirAll(filepath.Dir(c.SourcePath), 0o755); err != nil {
-		return err
-	}
-	return copyExtFile(c.InputPath, c.SourcePath)
+	return load.CopyFileReplacing(sourceRoot, c.InputPath, c.SourcePath)
 }
 
 // extensionNameSet returns the set of extension names already present in
@@ -248,22 +246,4 @@ func readPackageMetadata(dir string) (bool, string) {
 		return true, ""
 	}
 	return true, rest[:end]
-}
-
-func copyExtFile(src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
 }

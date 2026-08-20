@@ -3,6 +3,7 @@ package schema
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -73,6 +74,9 @@ type Agent struct {
 func (a *Agent) Validate() error {
 	if a.Name == "" {
 		return fmt.Errorf("%s: name is required", a.Path)
+	}
+	if a.Name == "." || a.Name == ".." || filepath.IsAbs(a.Name) || strings.ContainsAny(a.Name, `/\`) {
+		return fmt.Errorf("%s: name %q must be one safe filename component", a.Path, a.Name)
 	}
 	if a.Description == "" {
 		return fmt.Errorf("%s: description is required", a.Path)

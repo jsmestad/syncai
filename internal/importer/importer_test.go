@@ -19,6 +19,45 @@ func writeFile(t *testing.T, path, body string) {
 	}
 }
 
+func assertFileUnchanged(t *testing.T, path, want string, mode os.FileMode) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != want {
+		t.Fatalf("%s changed to %q", path, raw)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != mode {
+		t.Fatalf("%s mode = %o, want %o", path, info.Mode().Perm(), mode)
+	}
+}
+
+func assertRegularFile(t *testing.T, path, want string, mode os.FileMode) {
+	t.Helper()
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Mode().IsRegular() {
+		t.Fatalf("%s mode = %s, want regular file", path, info.Mode())
+	}
+	if info.Mode().Perm() != mode {
+		t.Fatalf("%s mode = %o, want %o", path, info.Mode().Perm(), mode)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != want {
+		t.Fatalf("%s content = %q, want %q", path, raw, want)
+	}
+}
+
 // I1: Scan returns one Candidate per orphan file across tool dirs.
 func TestScanFindsOrphans(t *testing.T) {
 	home := t.TempDir()
@@ -81,7 +120,7 @@ Body.
 		},
 	}
 	c := Candidate{Tool: "pi", InputPath: input, SourcePath: dest, AutoPortable: true}
-	if err := Port(c, p); err != nil {
+	if err := Port(d, c, p); err != nil {
 		t.Fatalf("Port: %v", err)
 	}
 	out, _ := os.ReadFile(dest)
@@ -112,7 +151,7 @@ Body.
 		Profiles:      map[string]map[string]map[string]string{"openai": {"pi": {"reasoning": "different-model"}}},
 	}
 	c := Candidate{Tool: "pi", InputPath: input, SourcePath: dest, AutoPortable: true}
-	if err := Port(c, p); err != nil {
+	if err := Port(d, c, p); err != nil {
 		t.Fatalf("Port: %v", err)
 	}
 	out, _ := os.ReadFile(dest)
@@ -139,7 +178,7 @@ Body.
 `)
 	c := Candidate{Tool: "pi", InputPath: input, SourcePath: dest, AutoPortable: true}
 	p := &profiles.File{ActiveProfile: "openai", Profiles: map[string]map[string]map[string]string{"openai": {"pi": {}}}}
-	if err := Port(c, p); err != nil {
+	if err := Port(d, c, p); err != nil {
 		t.Fatalf("Port: %v", err)
 	}
 	out, _ := os.ReadFile(dest)
@@ -194,7 +233,7 @@ Body.
 		},
 	}
 	c := Candidate{Tool: "claude", InputPath: input, SourcePath: dest, AutoPortable: true}
-	if err := Port(c, p); err != nil {
+	if err := Port(d, c, p); err != nil {
 		t.Fatalf("Port: %v", err)
 	}
 	out, _ := os.ReadFile(dest)
@@ -226,7 +265,7 @@ model: some-unknown-alias
 Body.
 `)
 	c := Candidate{Tool: "claude", InputPath: input, SourcePath: dest, AutoPortable: true}
-	if err := Port(c, &profiles.File{}); err != nil {
+	if err := Port(d, c, &profiles.File{}); err != nil {
 		t.Fatalf("Port: %v", err)
 	}
 	out, _ := os.ReadFile(dest)
@@ -259,7 +298,7 @@ Body content.
 		},
 	}
 	c := Candidate{Name: "archie", Tool: "codex", InputPath: input, SourcePath: dest, AutoPortable: true}
-	if err := Port(c, p); err != nil {
+	if err := Port(d, c, p); err != nil {
 		t.Fatalf("Port: %v", err)
 	}
 	out, _ := os.ReadFile(dest)
@@ -281,7 +320,7 @@ Body content.
 // reverse into a source tools list) with a helpful error.
 func TestPortRejectsOpenCode(t *testing.T) {
 	c := Candidate{Name: "x", Tool: "opencode", InputPath: "/some/path"}
-	err := Port(c, nil)
+	err := Port(t.TempDir(), c, nil)
 	if err == nil {
 		t.Fatal("expected error for opencode candidate")
 	}
@@ -307,7 +346,7 @@ Body.
 `)
 	c := Candidate{Tool: "pi", InputPath: input, SourcePath: dest, AutoPortable: true}
 	p := &profiles.File{ActiveProfile: "openai", Profiles: map[string]map[string]map[string]string{"openai": {"pi": {}}}}
-	if err := Port(c, p); err != nil {
+	if err := Port(d, c, p); err != nil {
 		t.Fatalf("Port: %v", err)
 	}
 	out, err := os.ReadFile(dest)
@@ -322,4 +361,27 @@ Body.
 	if !strings.Contains(string(out), "\n---\n") {
 		t.Errorf("missing closing delimiter")
 	}
+}
+
+func TestPortReplacesFinalSourceSymlink(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "installed", "imported.md")
+	sourceRoot := filepath.Join(root, "source")
+	target := filepath.Join(sourceRoot, "agents", "other.md")
+	intended := filepath.Join(sourceRoot, "agents", "imported.md")
+	writeFile(t, input, "---\nname: imported\ndescription: Imported agent\n---\nImported body.\n")
+	writeFile(t, target, "other canonical bytes")
+	if err := os.Chmod(target, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("other.md", intended); err != nil {
+		t.Fatal(err)
+	}
+	candidate := Candidate{Name: "imported", Tool: "pi", InputPath: input, SourcePath: intended, AutoPortable: true}
+
+	if err := Port(sourceRoot, candidate, nil); err != nil {
+		t.Fatalf("Port: %v", err)
+	}
+	assertFileUnchanged(t, target, "other canonical bytes", 0o600)
+	assertRegularFile(t, intended, "---\nname: imported\ndescription: Imported agent\ntargets: pi, claude, codex, opencode\nscope: home\n---\nImported body.\n", 0o644)
 }

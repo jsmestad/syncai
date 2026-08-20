@@ -216,7 +216,7 @@ Body content stays.
 `
 	writeFile(t, source, original)
 	plan := Plan{SourcePath: source, NewDescription: "New description!"}
-	if err := plan.Apply(); err != nil {
+	if err := plan.Apply(filepath.Join(d, "source")); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
 	got, _ := os.ReadFile(source)
@@ -232,7 +232,7 @@ func TestApplyBodyPreservesFrontmatter(t *testing.T) {
 	source := filepath.Join(d, "source/archie.md")
 	writeFile(t, source, "---\nname: archie\ndescription: foo\ntargets: pi\nscope: home\n---\nold body.\n")
 	plan := Plan{SourcePath: source, NewBody: "new body content.\n"}
-	if err := plan.Apply(); err != nil {
+	if err := plan.Apply(filepath.Join(d, "source")); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
 	got, _ := os.ReadFile(source)
@@ -248,7 +248,7 @@ func TestApplyDescriptionAndBody(t *testing.T) {
 	source := filepath.Join(d, "source/archie.md")
 	writeFile(t, source, "---\nname: archie\ndescription: old\n---\nold body.\n")
 	plan := Plan{SourcePath: source, NewDescription: "new desc", NewBody: "new body.\n"}
-	if err := plan.Apply(); err != nil {
+	if err := plan.Apply(filepath.Join(d, "source")); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
 	got, _ := os.ReadFile(source)
@@ -257,6 +257,66 @@ func TestApplyDescriptionAndBody(t *testing.T) {
 	}
 	if !strings.Contains(string(got), "new body.") {
 		t.Errorf("body not applied: %s", got)
+	}
+}
+
+func TestApplyReplacesFinalSourceSymlink(t *testing.T) {
+	sourceRoot := t.TempDir()
+	target := filepath.Join(sourceRoot, "agents", "other.md")
+	intended := filepath.Join(sourceRoot, "agents", "archie.md")
+	original := "---\nname: other\ndescription: Other agent\n---\nOriginal body.\n"
+	writeFile(t, target, original)
+	if err := os.Chmod(target, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("other.md", intended); err != nil {
+		t.Fatal(err)
+	}
+
+	plan := Plan{SourcePath: intended, NewBody: "Pulled body.\n"}
+	if err := plan.Apply(sourceRoot); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	assertFileUnchanged(t, target, original, 0o600)
+	assertRegularFile(t, intended, "---\nname: other\ndescription: Other agent\n---\nPulled body.\n", 0o644)
+}
+
+func assertFileUnchanged(t *testing.T, path, want string, mode os.FileMode) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != want {
+		t.Fatalf("%s changed to %q", path, raw)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != mode {
+		t.Fatalf("%s mode = %o, want %o", path, info.Mode().Perm(), mode)
+	}
+}
+
+func assertRegularFile(t *testing.T, path, want string, mode os.FileMode) {
+	t.Helper()
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Mode().IsRegular() {
+		t.Fatalf("%s mode = %s, want regular file", path, info.Mode())
+	}
+	if info.Mode().Perm() != mode {
+		t.Fatalf("%s mode = %o, want %o", path, info.Mode().Perm(), mode)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != want {
+		t.Fatalf("%s content = %q, want %q", path, raw, want)
 	}
 }
 

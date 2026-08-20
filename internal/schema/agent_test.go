@@ -83,6 +83,18 @@ func TestParseAgentMissingNameErrors(t *testing.T) {
 	}
 }
 
+func TestParseAgentRejectsUnsafeFilenameNames(t *testing.T) {
+	for _, name := range []string{".", "..", "/absolute", "nested/name", `nested\name`} {
+		t.Run(name, func(t *testing.T) {
+			src := "---\nname: " + name + "\ndescription: unsafe name\n---\n\nbody\n"
+			_, err := ParseAgent("test/unsafe.md", []byte(src))
+			if err == nil || !strings.Contains(err.Error(), "safe filename component") {
+				t.Fatalf("expected unsafe-name error for %q, got %v", name, err)
+			}
+		})
+	}
+}
+
 // S6: Missing description → error.
 func TestParseAgentMissingDescriptionErrors(t *testing.T) {
 	src := "---\nname: foo\n---\n\nbody\n"

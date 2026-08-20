@@ -48,18 +48,18 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 		return nil, nil
 	}
 	root := filepath.Join(outRoot, ".codex")
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := load.MkdirAll(outRoot, root, 0o755); err != nil {
 		return nil, err
 	}
 	var written []string
 
-	w, err := writeAgents(root, in)
+	w, err := writeAgents(outRoot, root, in)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, w...)
 
-	w, err = writeSkills(root, in.SkillDirs)
+	w, err = writeSkills(outRoot, root, in.SkillDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
 		path := filepath.Join(root, "AGENTS.md")
 		body := generatedHeader + strings.TrimRight(in.InstructionsGlobal, "\n") + "\n"
 		body = preserveRTKInclude(path, body)
-		if err := load.WriteFileReplacing(path, []byte(body), 0o644); err != nil {
+		if err := load.WriteFileReplacing(outRoot, path, []byte(body), 0o644); err != nil {
 			return nil, err
 		}
 		written = append(written, path)
@@ -91,14 +91,14 @@ func preserveRTKInclude(path, body string) string {
 	return body
 }
 
-func writeAgents(root string, in renderers.Inputs) ([]string, error) {
+func writeAgents(outRoot, root string, in renderers.Inputs) ([]string, error) {
 	dir := filepath.Join(root, "agents")
 	var written []string
 	for _, a := range in.Agents {
 		if !a.HasTarget(schema.TargetCodex) {
 			continue
 		}
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := load.MkdirAll(outRoot, dir, 0o755); err != nil {
 			return nil, err
 		}
 		body, err := renderAgent(a, in.Profiles)
@@ -106,7 +106,7 @@ func writeAgents(root string, in renderers.Inputs) ([]string, error) {
 			return nil, err
 		}
 		path := filepath.Join(dir, a.Name+".toml")
-		if err := load.WriteFileReplacing(path, body, 0o644); err != nil {
+		if err := load.WriteFileReplacing(dir, path, body, 0o644); err != nil {
 			return nil, fmt.Errorf("writing %s: %w", path, err)
 		}
 		written = append(written, path)
@@ -114,7 +114,7 @@ func writeAgents(root string, in renderers.Inputs) ([]string, error) {
 	return written, nil
 }
 
-func writeSkills(root string, srcDirs []string) ([]string, error) {
+func writeSkills(outRoot, root string, srcDirs []string) ([]string, error) {
 	if len(srcDirs) == 0 {
 		return nil, nil
 	}
@@ -123,7 +123,7 @@ func writeSkills(root string, srcDirs []string) ([]string, error) {
 	for _, src := range srcDirs {
 		name := filepath.Base(src)
 		target := filepath.Join(dst, name)
-		if err := load.CopyDir(src, target); err != nil {
+		if err := load.CopyDir(outRoot, src, target); err != nil {
 			return nil, fmt.Errorf("copying skill %s: %w", name, err)
 		}
 		written = append(written, target)

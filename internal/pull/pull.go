@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jsmestad/syncai/internal/load"
+	"github.com/jsmestad/syncai/internal/pathguard"
 	"github.com/jsmestad/syncai/internal/profiles"
 	"github.com/jsmestad/syncai/internal/schema"
 )
@@ -48,8 +50,12 @@ func (p Plan) HasChanges() bool {
 // Apply rewrites the source file with the pulled changes. Other source
 // frontmatter (targets, scope, Pi-only fields, body when unchanged) is
 // preserved.
-func (p Plan) Apply() error {
-	raw, err := os.ReadFile(p.SourcePath)
+func (p Plan) Apply(sourceRoot string) error {
+	sourcePath, err := pathguard.Resolve(sourceRoot, p.SourcePath)
+	if err != nil {
+		return err
+	}
+	raw, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return err
 	}
@@ -74,7 +80,7 @@ func (p Plan) Apply() error {
 	} else {
 		out = append(out, []byte(body)...)
 	}
-	return os.WriteFile(p.SourcePath, out, 0o644)
+	return load.WriteFileReplacing(sourceRoot, p.SourcePath, out, 0o644)
 }
 
 // PlanFor compares the installed file against the freshly-rendered file

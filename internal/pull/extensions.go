@@ -2,11 +2,13 @@ package pull
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/jsmestad/syncai/internal/load"
+	"github.com/jsmestad/syncai/internal/pathguard"
 )
 
 // ExtPlan describes how to pull a Pi extension's installed content back
@@ -117,20 +119,24 @@ func PlanExtension(name, installedPath, sourcePath string, isDirectory bool) (Ex
 // "added" change. "removed" changes are reported but not actioned —
 // pulling a deletion is hazardous (a transient install glitch could wipe
 // canonical source) and the user can `rm` deliberately if intended.
-func (p ExtPlan) Apply() error {
+func (p ExtPlan) Apply(sourceRoot string) error {
 	for _, c := range p.Changes {
 		switch c.Kind {
 		case "edited", "added":
 			src := filepath.Join(p.InstalledPath, c.RelPath)
-			dst := filepath.Join(p.SourcePath, c.RelPath)
+			candidate := filepath.Join(p.SourcePath, c.RelPath)
 			if !p.IsDirectory {
 				src = p.InstalledPath
-				dst = p.SourcePath
+				candidate = p.SourcePath
+			}
+			dst, err := pathguard.Resolve(sourceRoot, candidate)
+			if err != nil {
+				return err
 			}
 			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 				return err
 			}
-			if err := copyExtPullFile(src, dst); err != nil {
+			if err := load.CopyFileReplacing(sourceRoot, src, candidate); err != nil {
 				return fmt.Errorf("copying %s: %w", src, err)
 			}
 		}
@@ -192,23 +198,6 @@ func walkExtFiles(root string) (map[string]struct{}, error) {
 		return nil, err
 	}
 	return out, nil
-}
-
-func copyExtPullFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-	return nil
 }
 
 // FormatChange is a short human-readable summary of one change. Used by

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jsmestad/syncai/internal/pathguard"
 	"github.com/jsmestad/syncai/internal/schema"
 )
 
@@ -104,7 +105,11 @@ func readSkillScope(skillDir string) ([]string, error) {
 
 // CopyDir recursively copies src to dst. Removes dst first if it already
 // exists so stale files from a previous render don't linger.
-func CopyDir(src, dst string) error {
+func CopyDir(root, src, candidate string) error {
+	dst, err := resolveReplacement(root, candidate)
+	if err != nil {
+		return err
+	}
 	if err := os.RemoveAll(dst); err != nil {
 		return err
 	}
@@ -118,21 +123,28 @@ func CopyDir(src, dst string) error {
 		}
 		target := filepath.Join(dst, rel)
 		if info.IsDir() {
-			return os.MkdirAll(target, 0o755)
+			return MkdirAll(root, target, 0o755)
 		}
-		return copyFile(path, target)
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("copying %s: unsupported source file mode %s", path, info.Mode())
+		}
+		return copyFile(root, path, target, info.Mode().Perm())
 	})
 }
 
-func copyFile(src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+func copyFile(root, src, dst string, perm os.FileMode) error {
+	if err := MkdirAll(root, filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, data, 0o644)
+	path, err := pathguard.Resolve(root, dst)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, perm)
 }
 
 // ReadInstructions returns the body of <sourceRoot>/instructions/global.md

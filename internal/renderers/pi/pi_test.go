@@ -142,7 +142,7 @@ func TestWriteAgentsSkipsAndRemovesLegacyChains(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	written, err := writeAgents(dir, renderers.Inputs{Agents: []*schema.Agent{
+	written, err := writeAgents(dir, dir, renderers.Inputs{Agents: []*schema.Agent{
 		{
 			Name:    "plan-with-advice",
 			Path:    "agents/plan-with-advice.chain.md",

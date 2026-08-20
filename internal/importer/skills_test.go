@@ -126,7 +126,7 @@ func TestPortSkillCopiesDirectory(t *testing.T) {
 		InputPath:  input,
 		SourcePath: filepath.Join(source, "skills", "minga-preview"),
 	}
-	if err := PortSkill(c); err != nil {
+	if err := PortSkill(source, c); err != nil {
 		t.Fatalf("PortSkill: %v", err)
 	}
 	skillMD, err := os.ReadFile(filepath.Join(c.SourcePath, "SKILL.md"))
