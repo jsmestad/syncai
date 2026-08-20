@@ -1,0 +1,47 @@
+{
+  "activeProfile": "balanced",
+  "profiles": {
+    "balanced": {
+      "pi": {
+        "exploration": "example-lab/orbit-small:medium",
+        "review": "example-lab/orbit-large:high"
+      },
+      "omp": {
+        "exploration": "example-lab/orbit-small:medium",
+        "review": "example-lab/orbit-large:high"
+      },
+      "opencode": {
+        "exploration": "example-lab/orbit-small",
+        "review": "example-lab/orbit-large"
+      }
+    },
+    "focused": {
+      "pi": {
+        "exploration": "sample-foundry/compass-small:low",
+        "review": "sample-foundry/compass-large:xhigh"
+      },
+      "omp": {
+        "exploration": "sample-foundry/compass-small:low",
+        "review": "sample-foundry/compass-large:xhigh"
+      },
+      "opencode": {
+        "exploration": "sample-foundry/compass-small",
+        "review": "sample-foundry/compass-large"
+      }
+    }
+  },
+  "fixed": {
+    "claude": {
+      "exploration": "example-claude-explorer",
+      "review": "example-claude-reviewer"
+    },
+    "codex": {
+      "exploration": "example-codex-explorer:medium",
+      "review": "example-codex-reviewer:high"
+    },
+    "antigravity": {
+      "exploration": "example-antigravity-explorer",
+      "review": "example-antigravity-reviewer"
+    }
+  }
+}

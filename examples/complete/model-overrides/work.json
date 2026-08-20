@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "focused": {
+      "opencode": {
+        "review": "work-sample/compass-review"
+      }
+    }
+  }
+}

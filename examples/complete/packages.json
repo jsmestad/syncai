@@ -1,0 +1,18 @@
+{
+  "pi": {
+    "packages": [],
+    "packagesByScope": {},
+    "npmCommand": [],
+    "npmCommandByScope": {}
+  },
+  "claude": {
+    "marketplaces": [],
+    "plugins": []
+  },
+  "codex": {
+    "plugins": []
+  },
+  "antigravity": {
+    "plugins": []
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "balanced": {
+      "pi": {
+        "exploration": "home-sample/orbit-compact:low"
+      }
+    }
+  }
+}

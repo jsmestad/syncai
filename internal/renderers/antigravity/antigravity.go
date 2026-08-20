@@ -1,0 +1,180 @@
+// Package antigravity renders canonical agents and skills into an Antigravity CLI plugin.
+// Layout: <outRoot>/.gemini/antigravity-cli/plugins/dfiles/{agents,skills}/...
+// Frontmatter: YAML-safe name, description, tools array, model. Body is verbatim.
+package antigravity
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+
+	"github.com/jsmestad/syncai/internal/load"
+	"github.com/jsmestad/syncai/internal/profiles"
+	"github.com/jsmestad/syncai/internal/renderers"
+	"github.com/jsmestad/syncai/internal/schema"
+)
+
+type Renderer struct{}
+
+func New() Renderer { return Renderer{} }
+
+func (Renderer) Name() string { return string(schema.TargetAntigravity) }
+
+func (Renderer) Render(in renderers.Inputs, outRoot string) ([]string, error) {
+	outDir := filepath.Join(outRoot, ".gemini", "antigravity-cli", "plugins", "dfiles", "agents")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return nil, err
+	}
+	var written []string
+	for _, a := range in.Agents {
+		if !a.HasTarget(schema.TargetAntigravity) {
+			continue
+		}
+		out, err := renderAgent(a, in.Profiles)
+		if err != nil {
+			return nil, err
+		}
+		path := filepath.Join(outDir, a.Name+".md")
+		if err := load.WriteFileReplacing(path, out, 0o644); err != nil {
+			return nil, fmt.Errorf("writing %s: %w", path, err)
+		}
+		written = append(written, path)
+	}
+	if len(in.SkillDirs) > 0 {
+		skillDir := filepath.Join(outRoot, ".gemini", "antigravity-cli", "plugins", "dfiles", "skills")
+		paths, err := writeSkills(skillDir, in.SkillDirs)
+		if err != nil {
+			return nil, err
+		}
+		written = append(written, paths...)
+	}
+	return written, nil
+}
+
+func renderAgent(a *schema.Agent, p *profiles.File) ([]byte, error) {
+	var b bytes.Buffer
+	b.WriteString("---\n")
+	for _, kv := range a.Fields {
+		switch kv.Key {
+		case "targets", "scope":
+			continue
+		case "modelRole":
+			model, err := p.Resolve(string(schema.TargetAntigravity), kv.Value)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", a.Path, err)
+			}
+			fmt.Fprintf(&b, "model: %s\n", model)
+			continue
+		case "model", "fallbackModels":
+			continue
+		}
+		if _, ok := schema.PiOnlyFields[kv.Key]; ok {
+			continue
+		}
+		if kv.Key == "tools" {
+			writeTools(&b, kv.Value)
+			continue
+		}
+		writeScalar(&b, kv.Key, kv.Value)
+	}
+	b.WriteString("---\n")
+	b.WriteString(a.Body)
+	return b.Bytes(), nil
+}
+
+func writeScalar(b *bytes.Buffer, key, value string) {
+	fmt.Fprintf(b, "%s: %s\n", key, yamlString(value))
+}
+
+func writeTools(b *bytes.Buffer, value string) {
+	tools := antigravityTools(value)
+	if len(tools) == 0 {
+		return
+	}
+	b.WriteString("tools:\n")
+	for _, tool := range tools {
+		fmt.Fprintf(b, "  - %s\n", yamlString(tool))
+	}
+}
+
+func antigravityTools(value string) []string {
+	mapped := map[string]string{
+		"bash":  "run_shell_command",
+		"edit":  "replace",
+		"find":  "glob",
+		"grep":  "grep_search",
+		"ls":    "list_directory",
+		"read":  "read_file",
+		"write": "write_file",
+	}
+	seen := map[string]struct{}{}
+	var out []string
+	for _, raw := range schema.SplitCSV(value) {
+		tool := raw
+		if m, ok := mapped[raw]; ok {
+			tool = m
+		}
+		if _, ok := seen[tool]; ok {
+			continue
+		}
+		seen[tool] = struct{}{}
+		out = append(out, tool)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func yamlString(value string) string {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return `""`
+	}
+	return string(raw)
+}
+
+func writeSkills(dst string, skillDirs []string) ([]string, error) {
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return nil, err
+	}
+	var written []string
+	for _, src := range skillDirs {
+		name := filepath.Base(src)
+		target := filepath.Join(dst, name)
+		if err := copyDir(src, target); err != nil {
+			return nil, fmt.Errorf("copying antigravity skill %s: %w", name, err)
+		}
+		written = append(written, target)
+	}
+	return written, nil
+}
+
+func copyDir(src, dst string) error {
+	if err := os.RemoveAll(dst); err != nil {
+		return err
+	}
+	return filepath.WalkDir(src, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return load.WriteFileReplacing(target, data, info.Mode().Perm())
+	})
+}

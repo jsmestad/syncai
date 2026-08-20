@@ -1,0 +1,45 @@
+// Package renderers defines the contract every per-target renderer satisfies.
+package renderers
+
+import (
+	"github.com/jsmestad/syncai/internal/profiles"
+	"github.com/jsmestad/syncai/internal/schema"
+)
+
+// Renderer writes the per-target view of the canonical inputs into outRoot.
+// outRoot is the *root* output directory (e.g. "ai/"). The renderer chooses
+// its own subdirectory layout (e.g. "ai/.pi/agent/agents/", "ai/.claude/agents/").
+//
+// Each renderer is responsible for:
+//   - filtering inputs by target
+//   - resolving modelRole → concrete model id via profiles
+//   - dropping fields that don't apply to the target
+//   - writing files in the layout the target expects
+type Renderer interface {
+	Name() string
+	Render(in Inputs, outRoot string) ([]string, error)
+}
+
+// Inputs bundles everything a renderer might need.
+// Adding new resource types here keeps the Renderer signature stable.
+type Inputs struct {
+	Agents             []*schema.Agent
+	Profiles           *profiles.File
+	SkillDirs          []string            // absolute paths to ai-source/skills/<name>/
+	Extensions         []*schema.Extension // Pi-only verbatim TS extensions
+	InstructionsGlobal string              // body of ai-source/instructions/global.md
+
+	// Per-target prefix bodies. Key is the target name (matches Renderer.Name()).
+	InstructionPrefixes map[string]string
+
+	// SourceRoot is the canonical source directory. Useful for renderers that
+	// need to read additional files not pre-loaded above.
+	SourceRoot string
+
+	// ProjectMode signals the render is a repo-local sync (`syncai render
+	// --project <path>`) rather than a global dotfiles render. Renderers that
+	// support it should write to project-local paths and skip targets that
+	// don't make sense at project scope. Currently Pi and OMP honour project mode;
+	// Gemini retains legacy parity, while Claude/Codex/OpenCode skip.
+	ProjectMode bool
+}
