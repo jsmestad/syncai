@@ -48,7 +48,7 @@ release_base="https://github.com/jsmestad/syncai/releases/download/$tag"
 curl --proto '=https' --proto-redir '=https' -fsSL "$release_base/$archive_name" -o "$temporary_dir/syncai.tar.gz"
 curl --proto '=https' --proto-redir '=https' -fsSL "$release_base/checksums.txt" -o "$temporary_dir/checksums.txt"
 curl --proto '=https' --proto-redir '=https' -fsSL "$release_base/checksums.txt.sshsig" -o "$temporary_dir/checksums.txt.sshsig"
-printf '%s\n' 'syncai namespaces="syncai-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK4GBhMSHYZp/IqFIEjriR5a0Zc7bvhy+2oJqgJ2wLjA' > "$temporary_dir/allowed_signers"
+printf '%s\n' 'syncai namespaces="syncai-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII3hWAgKlEkNR5Tka8bGn2WTBI+Dyo7x17L3YMjEr4nZ' > "$temporary_dir/allowed_signers"
 { printf '%s\n' "$tag"; cat "$temporary_dir/checksums.txt"; } > "$temporary_dir/signed-checksums.txt"
 if ! ssh-keygen -Y verify -f "$temporary_dir/allowed_signers" -I syncai -n syncai-release -s "$temporary_dir/checksums.txt.sshsig" < "$temporary_dir/signed-checksums.txt" >/dev/null; then
 	echo 'Release checksum signature is invalid' >&2

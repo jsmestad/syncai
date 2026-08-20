@@ -89,12 +89,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Sign checksum manifest with the SyncAI release keys
         env:
-          SYNCAI_INSTALL_SIGNING_KEY: ${{ secrets.SYNCAI_INSTALL_SIGNING_KEY }}
+          SYNCAI_INSTALL_SIGNING_KEY_B64: ${{ secrets.SYNCAI_INSTALL_SIGNING_KEY_B64 }}
           SYNCAI_RELEASE_SIGNING_KEY: ${{ secrets.SYNCAI_RELEASE_SIGNING_KEY }}
         run: |
           umask 077
           printf '%s' "$SYNCAI_RELEASE_SIGNING_KEY" > "$RUNNER_TEMP/syncai-release-signing-key.pem"
-          printf '%s' "$SYNCAI_INSTALL_SIGNING_KEY" > "$RUNNER_TEMP/syncai-install-signing-key"
+          printf '%s' "$SYNCAI_INSTALL_SIGNING_KEY_B64" | base64 --decode > "$RUNNER_TEMP/syncai-install-signing-key"
           { printf '%s\n' "$GITHUB_REF_NAME"; cat dist/checksums.txt; } > "$RUNNER_TEMP/syncai-signed-checksums.txt"
           openssl pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/syncai-release-signing-key.pem" -in "$RUNNER_TEMP/syncai-signed-checksums.txt" -out dist/checksums.txt.ed25519
           ssh-keygen -Y sign -f "$RUNNER_TEMP/syncai-install-signing-key" -n syncai-release "$RUNNER_TEMP/syncai-signed-checksums.txt"
