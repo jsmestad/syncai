@@ -87,14 +87,19 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Sign checksum manifest with the SyncAI release key
+      - name: Sign checksum manifest with the SyncAI release keys
         env:
+          SYNCAI_INSTALL_SIGNING_KEY: ${{ secrets.SYNCAI_INSTALL_SIGNING_KEY }}
           SYNCAI_RELEASE_SIGNING_KEY: ${{ secrets.SYNCAI_RELEASE_SIGNING_KEY }}
         run: |
           umask 077
           printf '%s' "$SYNCAI_RELEASE_SIGNING_KEY" > "$RUNNER_TEMP/syncai-release-signing-key.pem"
+          printf '%s' "$SYNCAI_INSTALL_SIGNING_KEY" > "$RUNNER_TEMP/syncai-install-signing-key"
           { printf '%s\n' "$GITHUB_REF_NAME"; cat dist/checksums.txt; } > "$RUNNER_TEMP/syncai-signed-checksums.txt"
           openssl pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/syncai-release-signing-key.pem" -in "$RUNNER_TEMP/syncai-signed-checksums.txt" -out dist/checksums.txt.ed25519
+          ssh-keygen -Y sign -f "$RUNNER_TEMP/syncai-install-signing-key" -n syncai-release "$RUNNER_TEMP/syncai-signed-checksums.txt"
+          mv "$RUNNER_TEMP/syncai-signed-checksums.txt.sig" dist/checksums.txt.sshsig
+          rm "$RUNNER_TEMP/syncai-install-signing-key"
           rm "$RUNNER_TEMP/syncai-release-signing-key.pem"
           rm "$RUNNER_TEMP/syncai-signed-checksums.txt"
       - name: Sign checksum manifest
@@ -102,7 +107,7 @@ jobs:
       - name: Add signature to draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/checksums.txt.bundle dist/checksums.txt.sig dist/checksums.txt.pem dist/checksums.txt.ed25519 --clobber
+        run: gh release upload "$GITHUB_REF_NAME" dist/checksums.txt.bundle dist/checksums.txt.sig dist/checksums.txt.pem dist/checksums.txt.ed25519 dist/checksums.txt.sshsig --clobber
       - name: Attest release archives
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

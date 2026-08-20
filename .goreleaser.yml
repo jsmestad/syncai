@@ -43,6 +43,8 @@ release:
   github:
     owner: jsmestad
     name: syncai
+  extra_files:
+    - glob: ./install.sh
   draft: true
   replace_existing_draft: true
   make_latest: false
