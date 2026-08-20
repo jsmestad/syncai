@@ -1,4 +1,4 @@
-.PHONY: fmt-check fmt test vet build check
+.PHONY: fmt-check fmt test vet build check staticcheck vulncheck ci
 
 fmt-check:
 	@files="$$(gofmt -l cmd internal)"; test -z "$$files" || { printf '%s\n' "$$files"; exit 1; }
@@ -17,3 +17,11 @@ build:
 	@go build -o bin/syncai ./cmd/syncai
 
 check: fmt-check vet test build
+
+staticcheck:
+	@staticcheck ./...
+
+vulncheck:
+	@govulncheck ./...
+
+ci: check staticcheck vulncheck
